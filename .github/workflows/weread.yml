@@ -20,4 +20,4 @@ jobs:
           pip install -r requirements.txt
       - name: weread sync
         run: |
-          python scripts/notion/weread.py "${{secrets.WEREAD_COOKIE}}" "${{secrets.NOTION_TOKEN}}" "${{secrets.NOTION_DATABASE_ID}}" 
+          python weread.py "${{secrets.WEREAD_COOKIE}}" "${{secrets.NOTION_TOKEN}}" "${{secrets.NOTION_DATABASE_ID}}" 
