@@ -62,10 +62,10 @@ def insert_to_notion(bookName,cover, data):
     }
    
     properties = {
-        "BookName": {"title": [{"type": "text", "text": {"content": data["markText"]}}]},
+        "MarkText": {"title": [{"type": "text", "text": {"content": data["markText"]}}]},
         "BookId": {"rich_text": [{"type": "text", "text": {"content": data["bookId"]}}]},
         "BookmarkId": {"rich_text": [{"type": "text", "text": {"content": data["bookmarkId"]}}]},
-        "MarkText": {"rich_text": [{"type": "text", "text": {"content": bookName}}]},
+        "BookName": {"rich_text": [{"type": "text", "text": {"content": bookName}}]},
         "Type": {"select": {"name": str(data["type"])}},
         "Cover":{"files":[{"type":"external","name":"Cover","external":{"url":cover}}]},
        
