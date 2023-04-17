@@ -1,1 +1,26 @@
-## 将
+# 将微信读书划线同步到Notion
+
+本项目通过Github Action每天定时同步微信读书划线到Notion。
+
+## 使用
+
+1. 复制[这个Notion模板](https://malinkang.notion.site/1b78f0fd0d03484caa00154285ffec0c?v=7ed7e3fbe69043a28d2847e76f075d99)
+2. fork这个工程
+3. 获取微信读书的Cookie
+    * 浏览器打开 https://weread.qq.com/
+    * 微信扫码登录确认，提示没有权限忽略即可
+    * 按F12进入开发者模式，依次点 Network -> Doc -> Headers-> cookie。复制 Cookie 字符串;
+4. 获取NotionToken
+    * 浏览器打开https://www.notion.so/my-integrations
+    * 点击New integration 输入name提交
+    * 点击show，然后copy
+5. 获取NotionDatabaseID
+    * 打开Notion数据库，点击右上角的Share，然后点击Copy link
+    * 获取链接后比如https://www.notion.so/malinkang/1b78f0fd0d03484caa00154285ffec0c?v=7ed7e3fbe69043a28d2847e76f075d99&pvs=4中间的1b78f0fd0d03484caa00154285ffec0c就是DatabaseID
+6. 在Github的Secrets中添加以下变量
+    * 打开你fork的工程，点击Settings->Secrets and variables->New repository secret
+    * 添加以下变量
+        * WEREAD_COOKIE
+        * NOTION_TOKEN
+        * NOTION_DATABASE_ID
+
