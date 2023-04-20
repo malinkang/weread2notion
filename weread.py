@@ -14,7 +14,7 @@ WEREAD_URL = "https://weread.qq.com/"
 WEREAD_NOTEBOOKS_URL = "https://i.weread.qq.com/user/notebooks"
 WEREAD_BOOKMARKLIST_URL = "https://i.weread.qq.com/book/bookmarklist"
 WEREAD_CHAPTER_INFO = "https://i.weread.qq.com/book/chapterInfos"
-
+WEREAD_READ_INFO_URL = "https://i.weread.qq.com/book/readinfo"
 
 def parse_cookie_string(cookie_string):
     cookie = SimpleCookie()
@@ -33,6 +33,8 @@ def get_bookmark_list(title, bookId, cover, sort, author, chapter):
     """获取我的划线"""
     params = dict(bookId=bookId)
     r = session.get(WEREAD_BOOKMARKLIST_URL, params=params)
+    with open("note.json","w") as f:
+        f.write(json.dumps(r.json()))
     if r.ok:
         datas = r.json()["updated"]
         children = []
@@ -59,6 +61,13 @@ def get_bookmark_list(title, bookId, cover, sort, author, chapter):
                 children.append(get_callout(data.get("markText"),
                                 data.get("style"), data.get("colorStyle")))
         insert_to_notion(title, bookId, cover, sort, author, children)
+
+def get_read_ifo(bookId):
+    params = dict(bookId=bookId, readingDetail=1,readingBookIndex=1)
+    r = session.get(WEREAD_READ_INFO_URL, params=params)
+    if r.ok:
+        return r.json()
+    return None
 
 
 def get_table_of_contents():
@@ -175,12 +184,27 @@ def insert_to_notion(bookName, bookId, cover, date, author, children):
         "Cover": {"files": [{"type": "external", "name": "Cover", "external": {"url": cover}}]},
 
     }
+    read_info = get_read_ifo(bookId=bookId)
+    if read_info!=None:
+        markedStatus = read_info.get("markedStatus",0)
+        readingTime = read_info.get("readingTime",0)
+        format_time = ""
+        hour = readingTime // 3600
+        if hour > 0:
+            format_time+=f"{hour}时"
+        minutes = readingTime %3600 // 60
+        if minutes > 0:
+            format_time+=f"{minutes}分"
+        properties["Status"] = {"select":{"name":"读完" if markedStatus==4 else "在读"}}
+        properties["ReadingTime"] = {"rich_text": [{"type": "text", "text": {"content": format_time}}]}
+        
     icon = {
         "type": "external",
         "external": {
             "url": cover
         }
     }
+
     # notion api 限制100个block
     response = client.pages.create(
         parent=parent,icon=icon, properties=properties, children=children[0:100])
@@ -198,7 +222,7 @@ def get_notebooklist():
     books = []
     if r.ok:
         data = r.json()
-        books = data["books"]
+        books = data["books"][0:]
         books.sort(key=lambda x: x["sort"])
         book = books[0]
         for book in books:
