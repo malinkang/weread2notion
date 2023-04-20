@@ -63,7 +63,7 @@ def get_bookmark_list(title, bookId, cover, sort, author, chapter):
 
 
 def get_read_info(bookId):
-    params = dict(bookId=bookId, readingDetail=1, readingBookIndex=1)
+    params = dict(bookId=bookId, readingDetail=1, readingBookIndex=1,finishedDate=1)
     r = session.get(WEREAD_READ_INFO_URL, params=params)
     if r.ok:
         return r.json()
@@ -188,12 +188,11 @@ def insert_to_notion(bookName, bookId, cover, sort, author, children):
         "database_id": database_id,
         "type": "database_id"
     }
-
     properties = {
         "BookName": {"title": [{"type": "text", "text": {"content": bookName}}]},
         "BookId": {"rich_text": [{"type": "text", "text": {"content": bookId}}]},
         "Author": {"rich_text": [{"type": "text", "text": {"content": author}}]},
-        "Sort": {"date": {"start": sort.strftime("%Y-%m-%d %H:%M:%S"), "time_zone": "Asia/Shanghai"}},
+        "Sort": {"number": sort},
         "Cover": {"files": [{"type": "external", "name": "Cover", "external": {"url": cover}}]},
     }
     read_info = get_read_info(bookId=bookId)
@@ -221,7 +220,6 @@ def insert_to_notion(bookName, bookId, cover, sort, author, children):
             "url": cover
         }
     }
-
     # notion api 限制100个block
     response = client.pages.create(
         parent=parent, icon=icon, properties=properties, children=children[0:100])
@@ -244,8 +242,7 @@ def get_notebooklist():
         book = books[0]
         for book in books:
             sort = book["sort"]
-            sort = datetime.utcfromtimestamp(sort)
-            if date is not None and sort <= date:
+            if sort <= date:
                 continue
             title = book["book"]["title"]
             cover = book["book"]["cover"]
@@ -260,7 +257,7 @@ def get_date():
     """获取database中的最新时间"""
     filter = {
         "property": "Sort",
-        "date": {
+        "number": {
             "is_not_empty": True
         }
     }
@@ -273,10 +270,8 @@ def get_date():
     response = client.databases.query(
         database_id=database_id, filter=filter, sorts=sorts, page_size=1)
     if (len(response["results"]) == 1):
-        date = datetime.fromisoformat(
-            response["results"][0]["properties"]["Sort"]["date"]["start"]).replace(tzinfo=None)
-        return date
-    return None
+        return response["results"][0]["properties"]["Sort"]["number"]
+    return 0
 
 
 if __name__ == "__main__":
