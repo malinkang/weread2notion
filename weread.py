@@ -16,6 +16,7 @@ WEREAD_BOOKMARKLIST_URL = "https://i.weread.qq.com/book/bookmarklist"
 WEREAD_CHAPTER_INFO = "https://i.weread.qq.com/book/chapterInfos"
 WEREAD_READ_INFO_URL = "https://i.weread.qq.com/book/readinfo"
 
+
 def parse_cookie_string(cookie_string):
     cookie = SimpleCookie()
     cookie.load(cookie_string)
@@ -33,19 +34,17 @@ def get_bookmark_list(title, bookId, cover, sort, author, chapter):
     """获取我的划线"""
     params = dict(bookId=bookId)
     r = session.get(WEREAD_BOOKMARKLIST_URL, params=params)
-    with open("note.json","w") as f:
-        f.write(json.dumps(r.json()))
     if r.ok:
         datas = r.json()["updated"]
         children = []
         if chapter != None:
             # 添加目录
             children.append(get_table_of_contents())
-            datas = sorted(datas, key=lambda x: (x.get("chapterUid",1), x.get("range")))
+            datas = sorted(datas, key=lambda x: (
+                x.get("chapterUid", 1), x.get("range")))
             d = {}
-            print(chapter)
             for data in datas:
-                chapterUid = data.get("chapterUid",1)
+                chapterUid = data.get("chapterUid", 1)
                 if (chapterUid not in d):
                     d[chapterUid] = []
                 d[chapterUid].append(data)
@@ -62,12 +61,26 @@ def get_bookmark_list(title, bookId, cover, sort, author, chapter):
                                 data.get("style"), data.get("colorStyle")))
         insert_to_notion(title, bookId, cover, sort, author, children)
 
-def get_read_ifo(bookId):
-    params = dict(bookId=bookId, readingDetail=1,readingBookIndex=1)
+
+def get_read_info(bookId):
+    params = dict(bookId=bookId, readingDetail=1, readingBookIndex=1)
     r = session.get(WEREAD_READ_INFO_URL, params=params)
     if r.ok:
         return r.json()
     return None
+
+
+def get_bookinfo(bookId):
+    """获取书的详情"""
+    url = "https://i.weread.qq.com/book/info"
+    params = dict(bookId=bookId)
+    r = session.get(url, params=params)
+    isbn = ""
+    if r.ok:
+        data = r.json()
+        isbn = data["isbn"]
+        title = data["title"]
+    return isbn
 
 
 def get_table_of_contents():
@@ -168,7 +181,7 @@ def get_chapter_info(bookId):
     return None
 
 
-def insert_to_notion(bookName, bookId, cover, date, author, children):
+def insert_to_notion(bookName, bookId, cover, sort, author, children):
     """插入到notion"""
     time.sleep(0.3)
     parent = {
@@ -180,24 +193,28 @@ def insert_to_notion(bookName, bookId, cover, date, author, children):
         "BookName": {"title": [{"type": "text", "text": {"content": bookName}}]},
         "BookId": {"rich_text": [{"type": "text", "text": {"content": bookId}}]},
         "Author": {"rich_text": [{"type": "text", "text": {"content": author}}]},
-        "Date": {"date": {"start": date.strftime("%Y-%m-%d %H:%M:%S"), "time_zone": "Asia/Shanghai"}},
+        "Sort": {"date": {"start": sort.strftime("%Y-%m-%d %H:%M:%S"), "time_zone": "Asia/Shanghai"}},
         "Cover": {"files": [{"type": "external", "name": "Cover", "external": {"url": cover}}]},
-
     }
-    read_info = get_read_ifo(bookId=bookId)
-    if read_info!=None:
-        markedStatus = read_info.get("markedStatus",0)
-        readingTime = read_info.get("readingTime",0)
+    read_info = get_read_info(bookId=bookId)
+    if read_info != None:
+        markedStatus = read_info.get("markedStatus", 0)
+        readingTime = read_info.get("readingTime", 0)
         format_time = ""
         hour = readingTime // 3600
         if hour > 0:
-            format_time+=f"{hour}时"
-        minutes = readingTime %3600 // 60
+            format_time += f"{hour}时"
+        minutes = readingTime % 3600 // 60
         if minutes > 0:
-            format_time+=f"{minutes}分"
-        properties["Status"] = {"select":{"name":"读完" if markedStatus==4 else "在读"}}
-        properties["ReadingTime"] = {"rich_text": [{"type": "text", "text": {"content": format_time}}]}
-        
+            format_time += f"{minutes}分"
+        properties["Status"] = {"select": {
+            "name": "读完" if markedStatus == 4 else "在读"}}
+        properties["ReadingTime"] = {"rich_text": [
+            {"type": "text", "text": {"content": format_time}}]}
+        if "finishedDate" in read_info:
+            properties["Date"] = {"date": {"start": datetime.utcfromtimestamp(read_info.get(
+                "finishedDate")).strftime("%Y-%m-%d %H:%M:%S"), "time_zone": "Asia/Shanghai"}}
+
     icon = {
         "type": "external",
         "external": {
@@ -207,7 +224,7 @@ def insert_to_notion(bookName, bookId, cover, date, author, children):
 
     # notion api 限制100个block
     response = client.pages.create(
-        parent=parent,icon=icon, properties=properties, children=children[0:100])
+        parent=parent, icon=icon, properties=properties, children=children[0:100])
     id = response["id"]
     for i in range(1, len(children)//100+1):
         time.sleep(0.3)
@@ -222,15 +239,14 @@ def get_notebooklist():
     books = []
     if r.ok:
         data = r.json()
-        books = data["books"][0:]
+        books = data["books"]
         books.sort(key=lambda x: x["sort"])
         book = books[0]
         for book in books:
             sort = book["sort"]
             sort = datetime.utcfromtimestamp(sort)
-            if date is not None and sort < date :
+            if date is not None and sort <= date:
                 continue
-                
             title = book["book"]["title"]
             cover = book["book"]["cover"]
             bookId = book["book"]["bookId"]
@@ -243,14 +259,14 @@ def get_notebooklist():
 def get_date():
     """获取database中的最新时间"""
     filter = {
-        "property": "Date",
+        "property": "Sort",
         "date": {
             "is_not_empty": True
         }
     }
     sorts = [
         {
-            "property": "Date",
+            "property": "Sort",
             "direction": "descending",
         }
     ]
@@ -258,7 +274,7 @@ def get_date():
         database_id=database_id, filter=filter, sorts=sorts, page_size=1)
     if (len(response["results"]) == 1):
         date = datetime.fromisoformat(
-            response["results"][0]["properties"]["Date"]["date"]["start"]).replace(tzinfo=None)
+            response["results"][0]["properties"]["Sort"]["date"]["start"]).replace(tzinfo=None)
         return date
     return None
 
