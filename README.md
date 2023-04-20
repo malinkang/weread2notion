@@ -1,6 +1,12 @@
 # 将微信读书划线同步到Notion
 
+
 本项目通过Github Action每天定时同步微信读书划线到Notion。
+
+预览效果：https://malinkang.com
+
+
+注意：请不要在Page里面添加自己的笔记，有新的笔记的时候会删除原笔记重新添加。
 
 ## 使用
 
@@ -16,7 +22,7 @@
     * 点击show，然后copy
 5. 获取NotionDatabaseID
     * 打开Notion数据库，点击右上角的Share，然后点击Copy link
-    * 获取链接后比如https://www.notion.so/malinkang/1b78f0fd0d03484caa00154285ffec0c?v=7ed7e3fbe69043a28d2847e76f075d99&pvs=4中间的1b78f0fd0d03484caa00154285ffec0c就是DatabaseID
+    * 获取链接后比如 https://www.notion.so/malinkang/1b78f0fd0d03484caa00154285ffec0c?v=7ed7e3fbe69043a28d2847e76f075d99&pvs=4 中间的1b78f0fd0d03484caa00154285ffec0c就是DatabaseID
 6. 在Github的Secrets中添加以下变量
     * 打开你fork的工程，点击Settings->Secrets and variables->New repository secret
     * 添加以下变量
