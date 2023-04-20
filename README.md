@@ -10,7 +10,7 @@
 
 ## 使用
 
-1. 复制[这个Notion模板](https://malinkang.notion.site/1b78f0fd0d03484caa00154285ffec0c?v=7ed7e3fbe69043a28d2847e76f075d99)
+1. 复制[这个Notion模板](https://malinkang.notion.site/a7794117392d4625ace722f78742afca?v=0a9551b0702649fa9913ff4f3758ace0)
 2. fork这个工程
 3. 获取微信读书的Cookie
     * 浏览器打开 https://weread.qq.com/
