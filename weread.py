@@ -15,6 +15,8 @@ WEREAD_NOTEBOOKS_URL = "https://i.weread.qq.com/user/notebooks"
 WEREAD_BOOKMARKLIST_URL = "https://i.weread.qq.com/book/bookmarklist"
 WEREAD_CHAPTER_INFO = "https://i.weread.qq.com/book/chapterInfos"
 WEREAD_READ_INFO_URL = "https://i.weread.qq.com/book/readinfo"
+WEREAD_REVIEW_LIST_URL = "https://i.weread.qq.com/review/list"
+WEREAD_REVIEW_BOOK_INFO = "https://i.weread.qq.com/book/info"
 
 
 def parse_cookie_string(cookie_string):
@@ -30,40 +32,21 @@ def parse_cookie_string(cookie_string):
     return cookiejar
 
 
-def get_bookmark_list(title, bookId, cover, sort, author, chapter):
+def get_bookmark_list(bookId):
     """获取我的划线"""
     params = dict(bookId=bookId)
     r = session.get(WEREAD_BOOKMARKLIST_URL, params=params)
     if r.ok:
-        datas = r.json()["updated"]
-        children = []
-        if chapter != None:
-            # 添加目录
-            children.append(get_table_of_contents())
-            datas = sorted(datas, key=lambda x: (
-                x.get("chapterUid", 1), x.get("range")))
-            d = {}
-            for data in datas:
-                chapterUid = data.get("chapterUid", 1)
-                if (chapterUid not in d):
-                    d[chapterUid] = []
-                d[chapterUid].append(data)
-            for key, value in d .items():
-                if key in chapter:
-                    children.append(get_heading(
-                        chapter.get(key).get("level"), chapter.get(key).get("title")))
-                for i in value:
-                    children.append(get_callout(
-                        i.get("markText"), data.get("style"), i.get("colorStyle")))
-        else:
-            for data in datas:
-                children.append(get_callout(data.get("markText"),
-                                data.get("style"), data.get("colorStyle")))
-        insert_to_notion(title, bookId, cover, sort, author, children)
+        updated = r.json().get("updated")
+        updated = sorted(updated, key=lambda x: (
+            x.get("chapterUid", 1), int(x.get("range").split("-")[0])))
+        return r.json()["updated"]
+    return None
 
 
 def get_read_info(bookId):
-    params = dict(bookId=bookId, readingDetail=1, readingBookIndex=1,finishedDate=1)
+    params = dict(bookId=bookId, readingDetail=1,
+                  readingBookIndex=1, finishedDate=1)
     r = session.get(WEREAD_READ_INFO_URL, params=params)
     if r.ok:
         return r.json()
@@ -72,7 +55,7 @@ def get_read_info(bookId):
 
 def get_bookinfo(bookId):
     """获取书的详情"""
-    url = "https://i.weread.qq.com/book/info"
+    url = ""
     params = dict(bookId=bookId)
     r = session.get(url, params=params)
     isbn = ""
@@ -81,6 +64,18 @@ def get_bookinfo(bookId):
         isbn = data["isbn"]
         title = data["title"]
     return isbn
+
+
+def get_review_list(bookId):
+    """获取笔记"""
+    params = dict(bookId=bookId, listType=11, mine=1, syncKey=0)
+    r = session.get(WEREAD_REVIEW_LIST_URL, params=params)
+    reviews = r.json().get("reviews")
+    summary = list(filter(lambda x: x.get("review").get("type") == 4, reviews))
+    reviews = list(filter(lambda x: x.get("review").get("type") == 1, reviews))
+    reviews = list(map(lambda x: x.get("review"), reviews))
+    reviews = list(map(lambda x: {**x, "markText": x.pop("content")}, reviews))
+    return summary, reviews
 
 
 def get_table_of_contents():
@@ -115,13 +110,31 @@ def get_heading(level, content):
     }
 
 
-def get_callout(content, style, colorStyle):
+def get_quote(content):
+    return {
+        "type": "quote",
+        "quote": {
+            "rich_text": [{
+                "type": "text",
+                "text": {
+                    "content": content
+                },
+            }],
+            "color": "default"
+        }
+    }
+
+
+def get_callout(content, style, colorStyle, reviewId):
     # 根据不同的划线样式设置不同的emoji 直线type=0 背景颜色是1 波浪线是2
     emoji = "🌟"
     if style == 0:
         emoji = "💡"
     elif style == 1:
         emoji = "⭐"
+    # 如果reviewId不是空说明是笔记
+    if reviewId != None:
+        emoji = "✍️"
     color = "default"
     # 根据划线颜色设置文字的颜色
     if colorStyle == 1:
@@ -181,7 +194,7 @@ def get_chapter_info(bookId):
     return None
 
 
-def insert_to_notion(bookName, bookId, cover, sort, author, children):
+def insert_to_notion(bookName, bookId, cover, sort, author):
     """插入到notion"""
     time.sleep(0.3)
     parent = {
@@ -222,38 +235,57 @@ def insert_to_notion(bookName, bookId, cover, sort, author, children):
     }
     # notion api 限制100个block
     response = client.pages.create(
-        parent=parent, icon=icon, properties=properties, children=children[0:100])
+        parent=parent, icon=icon, properties=properties)
     id = response["id"]
-    for i in range(1, len(children)//100+1):
-        time.sleep(0.3)
-        response = client.blocks.children.append(
-            block_id=id, children=children[i*100:(i+1)*100])
     return id
+
+
+def add_blocks(id, children):
+    l = []
+    for child in children:
+        if (len(l) < 100 and child.get("quote") == None):
+            l.append(child)
+        elif len(l) == 100:
+            time.sleep(0.3)
+            client.blocks.children.append(block_id=id, children=l)
+            l.clear()
+            if (child.get("quote") != None):
+                quote = child.pop("quote")
+                time.sleep(0.3)
+                block_id = client.blocks.children.append(
+                    block_id=id, children=[child]).get("results")[0].get("id")
+                time.sleep(0.3)
+                client.blocks.children.append(
+                    block_id=block_id, children=[quote])
+            else:
+                l.append(child)
+        elif child.get("quote") != None:
+            quote = child.pop("quote")
+            time.sleep(0.3)
+            client.blocks.children.append(block_id=id, children=l)
+            l.clear()
+            time.sleep(0.3)
+            block_id = client.blocks.children.append(
+                block_id=id, children=[child]).get("results")[0].get("id")
+            time.sleep(0.3)
+            client.blocks.children.append(block_id=block_id, children=[quote])
+    if (len(l) > 0):
+        time.sleep(0.3)
+        client.blocks.children.append(block_id=id, children=l)
 
 
 def get_notebooklist():
     """获取笔记本列表"""
     r = session.get(WEREAD_NOTEBOOKS_URL)
-    books = []
     if r.ok:
         data = r.json()
-        books = data["books"]
+        books = data.get("books")
         books.sort(key=lambda x: x["sort"])
-        book = books[0]
-        for book in books:
-            sort = book["sort"]
-            if sort <= date:
-                continue
-            title = book["book"]["title"]
-            cover = book["book"]["cover"]
-            bookId = book["book"]["bookId"]
-            author = book["book"]["author"]
-            check(bookId)
-            chapter = get_chapter_info(bookId)
-            get_bookmark_list(title, bookId, cover, sort, author, chapter)
+        return books
+    return None
 
 
-def get_date():
+def get_sort():
     """获取database中的最新时间"""
     filter = {
         "property": "Sort",
@@ -269,9 +301,47 @@ def get_date():
     ]
     response = client.databases.query(
         database_id=database_id, filter=filter, sorts=sorts, page_size=1)
-    if (len(response["results"]) == 1):
-        return response["results"][0]["properties"]["Sort"]["number"]
+    if (len(response.get("results")) == 1):
+        return response.get("results")[0].get("properties").get("Sort").get("number")
     return 0
+
+
+def get_children(chapter, summary, bookmark_list):
+    children = []
+    if chapter != None:
+        # 添加目录
+        children.append(get_table_of_contents())
+        d = {}
+        for data in bookmark_list:
+            chapterUid = data.get("chapterUid", 1)
+            if (chapterUid not in d):
+                d[chapterUid] = []
+            d[chapterUid].append(data)
+        for key, value in d .items():
+            if key in chapter:
+                # 添加章节
+                children.append(get_heading(
+                    chapter.get(key).get("level"), chapter.get(key).get("title")))
+            for i in value:
+                callout = get_callout(
+                    i.get("markText"), data.get("style"), i.get("colorStyle"), i.get("reviewId"))
+
+                if i.get("abstract") != None and i.get("abstract") != "":
+                    quote = get_quote(i.get("abstract"))
+                    callout["quote"] = quote
+                children.append(callout)
+
+    else:
+        # 如果没有章节信息
+        for data in bookmark_list:
+            children.append(get_callout(data.get("markText"),
+                            data.get("style"), data.get("colorStyle"), data.get("reviewId")))
+    if summary != None:
+        children.append(get_heading(1, "点评"))
+        for i in summary:
+            children.append(get_callout(i.get("review").get("content"), i.get(
+                "style"), i.get("colorStyle"), i.get("review").get("reviewId")))
+    return children
 
 
 if __name__ == "__main__":
@@ -290,5 +360,25 @@ if __name__ == "__main__":
         log_level=logging.ERROR
     )
     session.get(WEREAD_URL)
-    date = get_date()
-    get_notebooklist()
+    latest_sort = get_sort()
+    books = get_notebooklist()
+    if (books != None):
+        for book in books:
+            sort = book["sort"]
+            if sort <= latest_sort:
+                continue
+            book = book.get("book")
+            title = book.get("title")
+            cover = book.get("cover")
+            bookId = book.get("bookId")
+            author = book.get("author")
+            check(bookId)
+            chapter = get_chapter_info(bookId)
+            bookmark_list = get_bookmark_list(bookId)
+            summary, reviews = get_review_list(bookId)
+            bookmark_list.extend(reviews)
+            bookmark_list = sorted(bookmark_list, key=lambda x: (
+                x.get("chapterUid", 1), 0 if x.get("range") == "" else int(x.get("range").split("-")[0])))
+            children = get_children(chapter, summary, bookmark_list)
+            id = insert_to_notion(title, bookId, cover, sort, author)
+            add_blocks(id, children)
