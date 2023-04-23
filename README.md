@@ -10,7 +10,7 @@
 
 ## 使用
 
-1. 复制[这个Notion模板](https://malinkang.notion.site/a7794117392d4625ace722f78742afca?v=0a9551b0702649fa9913ff4f3758ace0)
+1. star本项目
 2. fork这个工程
 3. 获取微信读书的Cookie
     * 浏览器打开 https://weread.qq.com/
@@ -20,10 +20,12 @@
     * 浏览器打开https://www.notion.so/my-integrations
     * 点击New integration 输入name提交
     * 点击show，然后copy
-5. 获取NotionDatabaseID
+5. 复制[这个Notion模板](https://malinkang.notion.site/a7794117392d4625ace722f78742afca?v=0a9551b0702649fa9913ff4f3758ace0)，并点击右上角设置，Connections添加你创建的Integration。
+
+6. 获取NotionDatabaseID
     * 打开Notion数据库，点击右上角的Share，然后点击Copy link
     * 获取链接后比如 https://www.notion.so/malinkang/1b78f0fd0d03484caa00154285ffec0c?v=7ed7e3fbe69043a28d2847e76f075d99&pvs=4 中间的1b78f0fd0d03484caa00154285ffec0c就是DatabaseID
-6. 在Github的Secrets中添加以下变量
+7. 在Github的Secrets中添加以下变量
     * 打开你fork的工程，点击Settings->Secrets and variables->New repository secret
     * 添加以下变量
         * WEREAD_COOKIE
