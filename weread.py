@@ -325,7 +325,6 @@ def get_children(chapter, summary, bookmark_list):
             for i in value:
                 callout = get_callout(
                     i.get("markText"), data.get("style"), i.get("colorStyle"), i.get("reviewId"))
-
                 if i.get("abstract") != None and i.get("abstract") != "":
                     quote = get_quote(i.get("abstract"))
                     callout["quote"] = quote
@@ -336,7 +335,7 @@ def get_children(chapter, summary, bookmark_list):
         for data in bookmark_list:
             children.append(get_callout(data.get("markText"),
                             data.get("style"), data.get("colorStyle"), data.get("reviewId")))
-    if summary != None:
+    if summary != None and len(summary) > 0:
         children.append(get_heading(1, "点评"))
         for i in summary:
             children.append(get_callout(i.get("review").get("content"), i.get(
@@ -378,7 +377,7 @@ if __name__ == "__main__":
             summary, reviews = get_review_list(bookId)
             bookmark_list.extend(reviews)
             bookmark_list = sorted(bookmark_list, key=lambda x: (
-                x.get("chapterUid", 1), 0 if x.get("range") == "" else int(x.get("range").split("-")[0])))
+                x.get("chapterUid", 1), 0 if x.get("range","") == "" else int(x.get("range").split("-")[0])))
             children = get_children(chapter, summary, bookmark_list)
             id = insert_to_notion(title, bookId, cover, sort, author)
             add_blocks(id, children)
