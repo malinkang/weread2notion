@@ -240,38 +240,21 @@ def insert_to_notion(bookName, bookId, cover, sort, author):
     return id
 
 
-def add_blocks(id, children):
-    l = []
-    for child in children:
-        if (len(l) < 100 and child.get("quote") == None):
-            l.append(child)
-        elif len(l) == 100:
-            time.sleep(0.3)
-            client.blocks.children.append(block_id=id, children=l)
-            l.clear()
-            if (child.get("quote") != None):
-                quote = child.pop("quote")
-                time.sleep(0.3)
-                block_id = client.blocks.children.append(
-                    block_id=id, children=[child]).get("results")[0].get("id")
-                time.sleep(0.3)
-                client.blocks.children.append(
-                    block_id=block_id, children=[quote])
-            else:
-                l.append(child)
-        elif child.get("quote") != None:
-            quote = child.pop("quote")
-            time.sleep(0.3)
-            client.blocks.children.append(block_id=id, children=l)
-            l.clear()
-            time.sleep(0.3)
-            block_id = client.blocks.children.append(
-                block_id=id, children=[child]).get("results")[0].get("id")
-            time.sleep(0.3)
-            client.blocks.children.append(block_id=block_id, children=[quote])
-    if (len(l) > 0):
+def add_children(id, children):
+    results = []
+    for i in range(0, len(children)//100+1):
         time.sleep(0.3)
-        client.blocks.children.append(block_id=id, children=l)
+        response = client.blocks.children.append(
+            block_id=id, children=children[i*100:(i+1)*100])
+        results.extend(response.get("results"))
+    return results if len(results) == len(children) else None
+
+
+def add_grandchild(grandchild, results):
+    for key, value in grandchild.items():
+        time.sleep(0.3)
+        id = results[key].get("id")
+        client.blocks.children.append(block_id=id, children=[value])
 
 
 def get_notebooklist():
@@ -308,6 +291,7 @@ def get_sort():
 
 def get_children(chapter, summary, bookmark_list):
     children = []
+    grandchild = {}
     if chapter != None:
         # 添加目录
         children.append(get_table_of_contents())
@@ -325,10 +309,10 @@ def get_children(chapter, summary, bookmark_list):
             for i in value:
                 callout = get_callout(
                     i.get("markText"), data.get("style"), i.get("colorStyle"), i.get("reviewId"))
+                children.append(callout)
                 if i.get("abstract") != None and i.get("abstract") != "":
                     quote = get_quote(i.get("abstract"))
-                    callout["quote"] = quote
-                children.append(callout)
+                    grandchild[len(children)-1] = quote
 
     else:
         # 如果没有章节信息
@@ -340,7 +324,7 @@ def get_children(chapter, summary, bookmark_list):
         for i in summary:
             children.append(get_callout(i.get("review").get("content"), i.get(
                 "style"), i.get("colorStyle"), i.get("review").get("reviewId")))
-    return children
+    return children, grandchild
 
 
 if __name__ == "__main__":
@@ -377,7 +361,10 @@ if __name__ == "__main__":
             summary, reviews = get_review_list(bookId)
             bookmark_list.extend(reviews)
             bookmark_list = sorted(bookmark_list, key=lambda x: (
-                x.get("chapterUid", 1), 0 if x.get("range","") == "" else int(x.get("range").split("-")[0])))
-            children = get_children(chapter, summary, bookmark_list)
+                x.get("chapterUid", 1), 0 if x.get("range", "") == "" else int(x.get("range").split("-")[0])))
+            children, grandchild = get_children(
+                chapter, summary, bookmark_list)
             id = insert_to_notion(title, bookId, cover, sort, author)
-            add_blocks(id, children)
+            results = add_children(id, children)
+            if(len(grandchild)>0 and results!=None):
+                add_grandchild(grandchild, results)
