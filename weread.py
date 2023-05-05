@@ -9,6 +9,7 @@ import requests
 from requests.utils import cookiejar_from_dict
 from http.cookies import SimpleCookie
 from datetime import datetime
+from bs4 import BeautifulSoup
 
 WEREAD_URL = "https://weread.qq.com/"
 WEREAD_NOTEBOOKS_URL = "https://i.weread.qq.com/user/notebooks"
@@ -16,7 +17,7 @@ WEREAD_BOOKMARKLIST_URL = "https://i.weread.qq.com/book/bookmarklist"
 WEREAD_CHAPTER_INFO = "https://i.weread.qq.com/book/chapterInfos"
 WEREAD_READ_INFO_URL = "https://i.weread.qq.com/book/readinfo"
 WEREAD_REVIEW_LIST_URL = "https://i.weread.qq.com/review/list"
-WEREAD_REVIEW_BOOK_INFO = "https://i.weread.qq.com/book/info"
+WEREAD_BOOK_INFO = "https://i.weread.qq.com/book/info"
 
 
 def parse_cookie_string(cookie_string):
@@ -55,14 +56,12 @@ def get_read_info(bookId):
 
 def get_bookinfo(bookId):
     """获取书的详情"""
-    url = ""
     params = dict(bookId=bookId)
-    r = session.get(url, params=params)
+    r = session.get(WEREAD_BOOK_INFO, params=params)
     isbn = ""
     if r.ok:
         data = r.json()
         isbn = data["isbn"]
-        title = data["title"]
     return isbn
 
 
@@ -186,8 +185,7 @@ def get_chapter_info(bookId):
         'synckeys': [0],
         'teenmode': 0
     }
-    url = 'https://i.weread.qq.com/book/chapterInfos'
-    r = session.post(url, json=body)
+    r = session.post(WEREAD_CHAPTER_INFO, json=body)
     if r.ok and "data" in r.json() and len(r.json()["data"]) == 1 and "updated" in r.json()["data"][0]:
         update = r.json()["data"][0]["updated"]
         return {item["chapterUid"]: item for item in update}
@@ -265,6 +263,8 @@ def get_notebooklist():
         books = data.get("books")
         books.sort(key=lambda x: x["sort"])
         return books
+    else:
+        print(r.text)
     return None
 
 
