@@ -9,7 +9,6 @@ import requests
 from requests.utils import cookiejar_from_dict
 from http.cookies import SimpleCookie
 from datetime import datetime
-from bs4 import BeautifulSoup
 
 WEREAD_URL = "https://weread.qq.com/"
 WEREAD_NOTEBOOKS_URL = "https://i.weread.qq.com/user/notebooks"
