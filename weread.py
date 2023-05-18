@@ -63,8 +63,8 @@ def get_bookinfo(bookId):
     if r.ok:
         data = r.json()
         isbn = data["isbn"]
-        rating = data["newRating"]/1000
-    return (isbn, rating)
+        newRating = data["newRating"]/1000
+    return (isbn, newRating)
 
 
 def get_review_list(bookId):
