@@ -11,6 +11,8 @@ from requests.utils import cookiejar_from_dict
 from http.cookies import SimpleCookie
 from datetime import datetime
 import hashlib
+import sys
+from api import weread
 
 WEREAD_URL = "https://weread.qq.com/"
 WEREAD_NOTEBOOKS_URL = "https://i.weread.qq.com/user/notebooks"
@@ -165,7 +167,7 @@ def get_callout(content, style, colorStyle, reviewId):
     }
 
 
-def check(bookId):
+def delete_record(bookId):
     """检查是否已经插入过 如果已经插入了就删除"""
     time.sleep(0.3)
     filter = {
@@ -194,7 +196,7 @@ def get_chapter_info(bookId):
     return None
 
 
-def insert_to_notion(bookName, bookId, cover, sort, author,isbn,rating):
+def insert_to_notion(bookName, bookId, cover, sort, author, isbn, rating, noteCount):
     """插入到notion"""
     time.sleep(0.3)
     parent = {
@@ -210,6 +212,7 @@ def insert_to_notion(bookName, bookId, cover, sort, author,isbn,rating):
         "Sort": {"number": sort},
         "Rating": {"number": rating},
         "Cover": {"files": [{"type": "external", "name": "Cover", "external": {"url": cover}}]},
+        "NoteCount": {"number": noteCount},
     }
     read_info = get_read_info(bookId=bookId)
     if read_info != None:
@@ -226,9 +229,11 @@ def insert_to_notion(bookName, bookId, cover, sort, author,isbn,rating):
             "name": "读完" if markedStatus == 4 else "在读"}}
         properties["ReadingTime"] = {"rich_text": [
             {"type": "text", "text": {"content": format_time}}]}
-        if "finishedDate" in read_info:
-            properties["Date"] = {"date": {"start": datetime.utcfromtimestamp(read_info.get(
-                "finishedDate")).strftime("%Y-%m-%d %H:%M:%S"), "time_zone": "Asia/Shanghai"}}
+
+        # 完成时间
+        if read_info.get("finishedDate"):
+            properties["FinishAt"] = {"date": {"start": datetime.utcfromtimestamp(
+                read_info.get("finishedDate")).strftime("%Y-%m-%d %H:%M:%S"), "time_zone": "Asia/Shanghai"}}
 
     icon = {
         "type": "external",
@@ -250,7 +255,7 @@ def add_children(id, children):
         response = client.blocks.children.append(
             block_id=id, children=children[i*100:(i+1)*100])
         results.extend(response.get("results"))
-    return results if len(results) == len(children) else None
+    return results if len(results) == len(children) else []
 
 
 def add_grandchild(grandchild, results):
@@ -258,19 +263,6 @@ def add_grandchild(grandchild, results):
         time.sleep(0.3)
         id = results[key].get("id")
         client.blocks.children.append(block_id=id, children=[value])
-
-
-def get_notebooklist():
-    """获取笔记本列表"""
-    r = session.get(WEREAD_NOTEBOOKS_URL)
-    if r.ok:
-        data = r.json()
-        books = data.get("books")
-        books.sort(key=lambda x: x["sort"])
-        return books
-    else:
-        print(r.text)
-    return None
 
 
 def get_sort():
@@ -331,6 +323,7 @@ def get_children(chapter, summary, bookmark_list):
                 "style"), i.get("colorStyle"), i.get("review").get("reviewId")))
     return children, grandchild
 
+
 def transform_id(book_id):
     id_length = len(book_id)
 
@@ -344,6 +337,7 @@ def transform_id(book_id):
     for i in range(id_length):
         result += format(ord(book_id[i]), 'x')
     return '4', [result]
+
 
 def calculate_book_str_id(book_id):
     md5 = hashlib.md5()
@@ -371,15 +365,18 @@ def calculate_book_str_id(book_id):
     result += md5.hexdigest()[0:3]
     return result
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("weread_cookie")
     parser.add_argument("notion_token")
     parser.add_argument("database_id")
     options = parser.parse_args()
+
     weread_cookie = options.weread_cookie
     database_id = options.database_id
     notion_token = options.notion_token
+
     session = requests.Session()
     session.cookies = parse_cookie_string(weread_cookie)
     client = Client(
@@ -387,29 +384,34 @@ if __name__ == "__main__":
         log_level=logging.ERROR
     )
     session.get(WEREAD_URL)
+
     latest_sort = get_sort()
-    books = get_notebooklist()
-    if (books != None):
-        for book in books:
-            sort = book["sort"]
-            if sort <= latest_sort:
-                continue
-            book = book.get("book")
-            title = book.get("title")
-            cover = book.get("cover")
-            bookId = book.get("bookId")
-            author = book.get("author")
-            check(bookId)
-            chapter = get_chapter_info(bookId)
-            bookmark_list = get_bookmark_list(bookId)
-            summary, reviews = get_review_list(bookId)
-            bookmark_list.extend(reviews)
-            bookmark_list = sorted(bookmark_list, key=lambda x: (
-                x.get("chapterUid", 1), 0 if (x.get("range", "") == "" or x.get("range").split("-")[0]=="" ) else int(x.get("range").split("-")[0])))
-            isbn,rating = get_bookinfo(bookId)
-            children, grandchild = get_children(
-                chapter, summary, bookmark_list)
-            id = insert_to_notion(title, bookId, cover, sort, author,isbn,rating)
-            results = add_children(id, children)
-            if(len(grandchild)>0 and results!=None):
-                add_grandchild(grandchild, results)
+
+    wreader = weread.WeReadAPI(session)
+
+    books = wreader.get_notebooklist()
+    for book in books:
+        sort = book["sort"]
+        if sort <= latest_sort: # 笔记无更新，跳过
+            continue
+
+        binfo = book.get("book")
+        bookID = binfo.get("bookId")
+
+        chapter = get_chapter_info(bookID)
+        bookmark_list = get_bookmark_list(bookID)
+        summary, reviews = get_review_list(bookID)
+        bookmark_list.extend(reviews)
+        bookmark_list = sorted(bookmark_list, key=lambda x: (
+            x.get("chapterUid", 1), 0 if (x.get("range", "") == "" or x.get("range").split("-")[0] == "") else int(x.get("range").split("-")[0])))
+        isbn, rating = get_bookinfo(bookID)
+
+        # delete before reinsert
+        delete_record(bookID)
+
+        children, grandchild = get_children(chapter, summary, bookmark_list)
+        id = insert_to_notion(binfo.get("title"), bookID, binfo.get(
+            "cover"), sort, binfo.get("author"), isbn, rating, book.get("noteCount"))
+        results = add_children(id, children)
+        if len(grandchild) > 0:
+            add_grandchild(grandchild, results)
