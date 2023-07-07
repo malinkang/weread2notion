@@ -231,9 +231,6 @@ def get_db_latest_sort():
         return response.get("results")[0].get("properties").get("Sort").get("number")
     return 0
 
-#def gen_chapter_dict(chapter_list):
-#    return {item["chapterUid"]: item for item in chapter_list}
-
 def gen_chapter_tree(chapter_list):
     tree = Tree()
     root = tree.create_node(identifier=ROOT_NODE_ID)  # root node
