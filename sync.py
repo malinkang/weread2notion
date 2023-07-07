@@ -1,5 +1,3 @@
-
-
 import argparse
 import json
 import logging
@@ -11,17 +9,17 @@ from requests.utils import cookiejar_from_dict
 from http.cookies import SimpleCookie
 from datetime import datetime
 import hashlib
-import sys
 from api import weread
+from collections import defaultdict
+from treelib import Tree
+
 
 WEREAD_URL = "https://weread.qq.com/"
-WEREAD_NOTEBOOKS_URL = "https://i.weread.qq.com/user/notebooks"
-WEREAD_BOOKMARKLIST_URL = "https://i.weread.qq.com/book/bookmarklist"
-WEREAD_CHAPTER_INFO = "https://i.weread.qq.com/book/chapterInfos"
 WEREAD_READ_INFO_URL = "https://i.weread.qq.com/book/readinfo"
-WEREAD_REVIEW_LIST_URL = "https://i.weread.qq.com/review/list"
-WEREAD_BOOK_INFO = "https://i.weread.qq.com/book/info"
 
+ROOT_NODE_ID = "#root"
+BOOK_MARK_KEY = '#bookmarks'
+NOTION_MAX_LEVEL = 3
 
 def parse_cookie_string(cookie_string):
     cookie = SimpleCookie()
@@ -36,18 +34,6 @@ def parse_cookie_string(cookie_string):
     return cookiejar
 
 
-def get_bookmark_list(bookId):
-    """获取我的划线"""
-    params = dict(bookId=bookId)
-    r = session.get(WEREAD_BOOKMARKLIST_URL, params=params)
-    if r.ok:
-        updated = r.json().get("updated")
-        updated = sorted(updated, key=lambda x: (
-            x.get("chapterUid", 1), int(x.get("range").split("-")[0])))
-        return r.json()["updated"]
-    return None
-
-
 def get_read_info(bookId):
     params = dict(bookId=bookId, readingDetail=1,
                   readingBookIndex=1, finishedDate=1)
@@ -55,31 +41,6 @@ def get_read_info(bookId):
     if r.ok:
         return r.json()
     return None
-
-
-def get_bookinfo(bookId):
-    """获取书的详情"""
-    params = dict(bookId=bookId)
-    r = session.get(WEREAD_BOOK_INFO, params=params)
-    isbn = ""
-    if r.ok:
-        data = r.json()
-        isbn = data["isbn"]
-        newRating = data["newRating"]/1000
-    return (isbn, newRating)
-
-
-def get_review_list(bookId):
-    """获取笔记"""
-    params = dict(bookId=bookId, listType=11, mine=1, syncKey=0)
-    r = session.get(WEREAD_REVIEW_LIST_URL, params=params)
-    reviews = r.json().get("reviews")
-    summary = list(filter(lambda x: x.get("review").get("type") == 4, reviews))
-    reviews = list(filter(lambda x: x.get("review").get("type") == 1, reviews))
-    reviews = list(map(lambda x: x.get("review"), reviews))
-    reviews = list(map(lambda x: {**x, "markText": x.pop("content")}, reviews))
-    return summary, reviews
-
 
 def get_table_of_contents():
     """获取目录"""
@@ -181,22 +142,7 @@ def delete_record(bookId):
         time.sleep(0.3)
         client.blocks.delete(block_id=result["id"])
 
-
-def get_chapter_info(bookId):
-    """获取章节信息"""
-    body = {
-        'bookIds': [bookId],
-        'synckeys': [0],
-        'teenmode': 0
-    }
-    r = session.post(WEREAD_CHAPTER_INFO, json=body)
-    if r.ok and "data" in r.json() and len(r.json()["data"]) == 1 and "updated" in r.json()["data"][0]:
-        update = r.json()["data"][0]["updated"]
-        return {item["chapterUid"]: item for item in update}
-    return None
-
-
-def insert_to_notion(bookName, bookId, cover, sort, author, isbn, rating, noteCount):
+def insert_to_notion(bookName='', bookId='', cover='', sort=0, author='', isbn='', rating=0, noteCount=0):
     """插入到notion"""
     time.sleep(0.3)
     parent = {
@@ -214,6 +160,7 @@ def insert_to_notion(bookName, bookId, cover, sort, author, isbn, rating, noteCo
         "Cover": {"files": [{"type": "external", "name": "Cover", "external": {"url": cover}}]},
         "NoteCount": {"number": noteCount},
     }
+    
     read_info = get_read_info(bookId=bookId)
     if read_info != None:
         markedStatus = read_info.get("markedStatus", 0)
@@ -244,8 +191,7 @@ def insert_to_notion(bookName, bookId, cover, sort, author, isbn, rating, noteCo
     # notion api 限制100个block
     response = client.pages.create(
         parent=parent, icon=icon, properties=properties)
-    id = response["id"]
-    return id
+    return response["id"]
 
 
 def add_children(id, children):
@@ -265,7 +211,7 @@ def add_grandchild(grandchild, results):
         client.blocks.children.append(block_id=id, children=[value])
 
 
-def get_sort():
+def get_db_latest_sort():
     """获取database中的最新时间"""
     filter = {
         "property": "Sort",
@@ -285,42 +231,96 @@ def get_sort():
         return response.get("results")[0].get("properties").get("Sort").get("number")
     return 0
 
+#def gen_chapter_dict(chapter_list):
+#    return {item["chapterUid"]: item for item in chapter_list}
 
-def get_children(chapter, summary, bookmark_list):
+def gen_chapter_tree(chapter_list):
+    tree = Tree()
+    root = tree.create_node(identifier=ROOT_NODE_ID)  # root node
+    p = {}
+    for u in chapter_list:
+        level = u.get('level', 1)
+        if level <= 0:
+            level = 1
+        elif level > NOTION_MAX_LEVEL: # 目前仅支持header1-3
+            level = NOTION_MAX_LEVEL
+
+        parent = p.get(level - 1, root)
+        chapterUid = u.get('chapterUid')
+        p[level] = tree.create_node(tag=chapterUid, identifier=chapterUid, parent=parent, data=u)
+    return tree
+
+# mount bookmarks to chapter tree
+def mount_bookmarks(chapter_tree, bookmark_list):
+    d = defaultdict(list)
+    for data in bookmark_list:
+        chapterUid = data.get("chapterUid", 1)
+        d[chapterUid].append(data)
+
+    for key, value in d.items():
+        node = chapter_tree.get_node(key)
+        if not node:
+            logging.error("chapter info not found.", key)
+            continue
+
+        # mount bookmark list to chapter list
+        node.data[BOOK_MARK_KEY] = value
+
+# remove chapter without bookmarks    
+def remove_empty_chapter(chapter_tree):
+    n = chapter_tree.depth()
+    for d in range(n, 0, -1):
+        ns = list(chapter_tree.filter_nodes(lambda x: chapter_tree.depth(x) == d))
+
+        for n in ns:
+            if n.data.get(BOOK_MARK_KEY) is None and n.is_leaf():
+                #print('remove:', n)
+                chapter_tree.remove_node(n.identifier)
+
+def get_children(chapters_list, summary, bookmark_list):
     children = []
     grandchild = {}
-    if chapter != None:
+
+    if len(chapters_list) > 0:
         # 添加目录
         children.append(get_table_of_contents())
-        d = {}
-        for data in bookmark_list:
-            chapterUid = data.get("chapterUid", 1)
-            if (chapterUid not in d):
-                d[chapterUid] = []
-            d[chapterUid].append(data)
-        for key, value in d .items():
-            if key in chapter:
-                # 添加章节
-                children.append(get_heading(
-                    chapter.get(key).get("level"), chapter.get(key).get("title")))
-            for i in value:
-                callout = get_callout(
-                    i.get("markText"), data.get("style"), i.get("colorStyle"), i.get("reviewId"))
-                children.append(callout)
-                if i.get("abstract") != None and i.get("abstract") != "":
+        
+        chapter_tree = gen_chapter_tree(chapters_list)
+        mount_bookmarks(chapter_tree, bookmark_list)
+        remove_empty_chapter(chapter_tree)
+        
+        for n in chapter_tree.expand_tree(mode=Tree.DEPTH):
+            #print(tree[n].data)
+            #for key, value in d.items():
+            if chapter_tree[n].is_root():
+                continue
+
+            data = chapter_tree[n].data
+            children.append(get_heading(data.get("level"), data.get("title")))
+
+            #if key in chapter_dict:
+            #    # 添加章节信息
+            #    children.append(get_heading(chapter_dict.get(key).get("level"), chapter_dict.get(key).get("title")))
+            
+            for i in data.get(BOOK_MARK_KEY, []):
+                children.append(get_callout(i.get("markText"), data.get("style"), i.get("colorStyle"), i.get("reviewId")))
+                
+                if i.get("abstract"): ## 评语，写入quote信息
                     quote = get_quote(i.get("abstract"))
                     grandchild[len(children)-1] = quote
-
     else:
         # 如果没有章节信息
         for data in bookmark_list:
-            children.append(get_callout(data.get("markText"),
-                            data.get("style"), data.get("colorStyle"), data.get("reviewId")))
-    if summary != None and len(summary) > 0:
+            children.append(
+                get_callout(data.get("markText"), data.get("style"), data.get("colorStyle"), data.get("reviewId")))
+    
+    # 追加推荐评语
+    if summary:
         children.append(get_heading(1, "点评"))
         for i in summary:
-            children.append(get_callout(i.get("review").get("content"), i.get(
-                "style"), i.get("colorStyle"), i.get("review").get("reviewId")))
+            children.append(
+                get_callout(i.get("review").get("content"), i.get("style"), i.get("colorStyle"), i.get("review").get("reviewId")))
+    
     return children, grandchild
 
 
@@ -385,33 +385,38 @@ if __name__ == "__main__":
     )
     session.get(WEREAD_URL)
 
-    latest_sort = get_sort()
+    latest_sort = get_db_latest_sort()
 
     wreader = weread.WeReadAPI(session)
 
     books = wreader.get_notebooklist()
-    for book in books:
-        sort = book["sort"]
+    for _book in books:
+        sort = _book["sort"]
         if sort <= latest_sort: # 笔记无更新，跳过
             continue
 
-        binfo = book.get("book")
-        bookID = binfo.get("bookId")
+        book_dict = _book.get("book")
+        bookID = book_dict.get("bookId")
 
-        chapter = get_chapter_info(bookID)
-        bookmark_list = get_bookmark_list(bookID)
-        summary, reviews = get_review_list(bookID)
+        chapters_list = wreader.get_chapter_list(bookID)        
+        bookmark_list = wreader.get_bookmark_list(bookID)
+        summary, reviews = wreader.get_review_list(bookID)
+
         bookmark_list.extend(reviews)
         bookmark_list = sorted(bookmark_list, key=lambda x: (
             x.get("chapterUid", 1), 0 if (x.get("range", "") == "" or x.get("range").split("-")[0] == "") else int(x.get("range").split("-")[0])))
-        isbn, rating = get_bookinfo(bookID)
+        
+        isbn, rating = wreader.get_bookinfo(bookID)
 
         # delete before reinsert
         delete_record(bookID)
-
-        children, grandchild = get_children(chapter, summary, bookmark_list)
-        id = insert_to_notion(binfo.get("title"), bookID, binfo.get(
-            "cover"), sort, binfo.get("author"), isbn, rating, book.get("noteCount"))
+        
+        id = insert_to_notion(bookName=book_dict.get("title"), 
+                              bookId=bookID, cover=book_dict.get("cover"), 
+                              sort=sort, author=book_dict.get("author"), 
+                              isbn=isbn, rating=rating, noteCount=_book.get("noteCount"))
+        
+        children, grandchild = get_children(chapters_list, summary, bookmark_list)
         results = add_children(id, children)
         if len(grandchild) > 0:
             add_grandchild(grandchild, results)
