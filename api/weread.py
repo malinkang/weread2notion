@@ -1,4 +1,7 @@
 # 封装微信api的调用
+from http.cookies import SimpleCookie
+from requests.utils import cookiejar_from_dict
+import requests
 
 class WeReadAPI:
     WEREAD_NOTEBOOKS_URL = "https://i.weread.qq.com/user/notebooks"
@@ -6,9 +9,27 @@ class WeReadAPI:
     WEREAD_BOOKMARKLIST_URL = "https://i.weread.qq.com/book/bookmarklist"
     WEREAD_REVIEW_LIST_URL = "https://i.weread.qq.com/review/list"
     WEREAD_BOOK_INFO = "https://i.weread.qq.com/book/info"
+    WEREAD_READ_INFO_URL = "https://i.weread.qq.com/book/readinfo"
 
-    def __init__(self, session):
+    WEREAD_URL = "https://weread.qq.com/"
+
+    def __init__(self, cookie):
+        session = requests.Session()
+        session.cookies = self.parse_cookie_string(cookie)
+        session.get(self.WEREAD_URL)
         self.session = session
+
+    def parse_cookie_string(self, cookie_string):
+        cookie = SimpleCookie()
+        cookie.load(cookie_string)
+        cookies_dict = {}
+        cookiejar = None
+        for key, morsel in cookie.items():
+            cookies_dict[key] = morsel.value
+            cookiejar = cookiejar_from_dict(
+                cookies_dict, cookiejar=None, overwrite=True
+            )
+        return cookiejar
 
     def get_notebooklist(self):
         """全量书籍笔记信息列表，仅包括笔记更新时间、数量等，不包括笔记明细"""
@@ -79,3 +100,11 @@ class WeReadAPI:
             isbn = data["isbn"]
             newRating = data["newRating"]/1000
         return (isbn, newRating)
+    
+    def get_read_info(self, bookId):
+        params = dict(bookId=bookId, readingDetail=1,
+                    readingBookIndex=1, finishedDate=1)
+        r = self.session.get(self.WEREAD_READ_INFO_URL, params=params)
+        if r.ok:
+            return r.json()
+        return None

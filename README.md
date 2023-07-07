@@ -1,7 +1,7 @@
 # 将微信读书划线和笔记同步到Notion
 
 
-本项目通过Github Action每天定时同步微信读书划线到Notion。
+本项目通过Github Action每天定时同步微信读书笔记（划线、评语、推荐评论）到Notion。
 
 预览效果：https://book.malinkang.com
 
@@ -36,3 +36,4 @@
 
 - feat: 新增noteCount字段，删除无用的部分字段
 - feat: 调整内容组织方式，增加对多级目录的支持。会将笔记归属的目录链条全部写入notion。注意notion仅支持1-3级目录，大于3时全部当做3级目录。
+- feat: 增加lastReadingDate。注意如果没有笔记操作则不会更新该条记录。

@@ -4,43 +4,15 @@ import logging
 import re
 import time
 from notion_client import Client
-import requests
-from requests.utils import cookiejar_from_dict
-from http.cookies import SimpleCookie
 from datetime import datetime
 import hashlib
 from api import weread
 from collections import defaultdict
 from treelib import Tree
 
-
-WEREAD_URL = "https://weread.qq.com/"
-WEREAD_READ_INFO_URL = "https://i.weread.qq.com/book/readinfo"
-
 ROOT_NODE_ID = "#root"
 BOOK_MARK_KEY = '#bookmarks'
 NOTION_MAX_LEVEL = 3
-
-def parse_cookie_string(cookie_string):
-    cookie = SimpleCookie()
-    cookie.load(cookie_string)
-    cookies_dict = {}
-    cookiejar = None
-    for key, morsel in cookie.items():
-        cookies_dict[key] = morsel.value
-        cookiejar = cookiejar_from_dict(
-            cookies_dict, cookiejar=None, overwrite=True
-        )
-    return cookiejar
-
-
-def get_read_info(bookId):
-    params = dict(bookId=bookId, readingDetail=1,
-                  readingBookIndex=1, finishedDate=1)
-    r = session.get(WEREAD_READ_INFO_URL, params=params)
-    if r.ok:
-        return r.json()
-    return None
 
 def get_table_of_contents():
     """获取目录"""
@@ -142,7 +114,7 @@ def delete_record(bookId):
         time.sleep(0.3)
         client.blocks.delete(block_id=result["id"])
 
-def insert_to_notion(bookName='', bookId='', cover='', sort=0, author='', isbn='', rating=0, noteCount=0):
+def insert_to_notion(bookName='', bookId='', cover='', sort=0, author='', isbn='', rating=0, noteCount=0, read_info=None):
     """插入到notion"""
     time.sleep(0.3)
     parent = {
@@ -161,8 +133,7 @@ def insert_to_notion(bookName='', bookId='', cover='', sort=0, author='', isbn='
         "NoteCount": {"number": noteCount},
     }
     
-    read_info = get_read_info(bookId=bookId)
-    if read_info != None:
+    if read_info:
         markedStatus = read_info.get("markedStatus", 0)
         readingTime = read_info.get("readingTime", 0)
         format_time = ""
@@ -172,11 +143,15 @@ def insert_to_notion(bookName='', bookId='', cover='', sort=0, author='', isbn='
         minutes = readingTime % 3600 // 60
         if minutes > 0:
             format_time += f"{minutes}分"
-        properties["Status"] = {"select": {
-            "name": "读完" if markedStatus == 4 else "在读"}}
-        properties["ReadingTime"] = {"rich_text": [
-            {"type": "text", "text": {"content": format_time}}]}
+        properties["Status"] = {"select": {"name": "读完" if markedStatus == 4 else "在读"}}
+        properties["ReadingTime"] = {"rich_text": [{"type": "text", "text": {"content": format_time}}]}
 
+        # 最近阅读
+        detail = read_info.get('readDetail', {})
+        if detail.get('lastReadingDate'):
+            properties["lastReadingDate"] = {"date": {"start": datetime.utcfromtimestamp(
+                detail.get("lastReadingDate")).strftime("%Y-%m-%d %H:%M:%S"), "time_zone": "Asia/Shanghai"}}
+            
         # 完成时间
         if read_info.get("finishedDate"):
             properties["FinishAt"] = {"date": {"start": datetime.utcfromtimestamp(
@@ -189,8 +164,7 @@ def insert_to_notion(bookName='', bookId='', cover='', sort=0, author='', isbn='
         }
     }
     # notion api 限制100个block
-    response = client.pages.create(
-        parent=parent, icon=icon, properties=properties)
+    response = client.pages.create(parent=parent, icon=icon, properties=properties)
     return response["id"]
 
 
@@ -370,21 +344,16 @@ if __name__ == "__main__":
     parser.add_argument("database_id")
     options = parser.parse_args()
 
-    weread_cookie = options.weread_cookie
     database_id = options.database_id
     notion_token = options.notion_token
 
-    session = requests.Session()
-    session.cookies = parse_cookie_string(weread_cookie)
     client = Client(
         auth=notion_token,
         log_level=logging.ERROR
     )
-    session.get(WEREAD_URL)
-
     latest_sort = get_db_latest_sort()
 
-    wreader = weread.WeReadAPI(session)
+    wreader = weread.WeReadAPI(options.weread_cookie)
 
     books = wreader.get_notebooklist()
     for _book in books:
@@ -404,6 +373,7 @@ if __name__ == "__main__":
             x.get("chapterUid", 1), 0 if (x.get("range", "") == "" or x.get("range").split("-")[0] == "") else int(x.get("range").split("-")[0])))
         
         isbn, rating = wreader.get_bookinfo(bookID)
+        read_info = wreader.get_read_info(bookID)
 
         # delete before reinsert
         delete_record(bookID)
@@ -411,7 +381,8 @@ if __name__ == "__main__":
         id = insert_to_notion(bookName=book_dict.get("title"), 
                               bookId=bookID, cover=book_dict.get("cover"), 
                               sort=sort, author=book_dict.get("author"), 
-                              isbn=isbn, rating=rating, noteCount=_book.get("noteCount"))
+                              isbn=isbn, rating=rating, noteCount=_book.get("noteCount"),
+                              read_info=read_info)
         
         children, grandchild = get_children(chapters_list, summary, bookmark_list)
         results = add_children(id, children)
