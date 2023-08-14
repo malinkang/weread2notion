@@ -1,5 +1,3 @@
-import argparse
-import json
 import logging
 import re
 import time
@@ -100,7 +98,7 @@ def get_callout(content, style, colorStyle, reviewId):
     }
 
 
-def delete_record(bookId):
+def delete_record(client, database_id, bookId):
     """检查是否已经插入过 如果已经插入了就删除"""
     time.sleep(0.3)
     filter = {
@@ -114,7 +112,7 @@ def delete_record(bookId):
         time.sleep(0.3)
         client.blocks.delete(block_id=result["id"])
 
-def insert_to_notion(bookName='', bookId='', cover='', sort=0, author='', isbn='', rating=0, noteCount=0, read_info=None):
+def insert_to_notion(client, database_id, bookName='', bookId='', cover='', sort=0, author='', isbn='', rating=0, noteCount=0, read_info=None):
     """插入到notion"""
     time.sleep(0.3)
     parent = {
@@ -168,7 +166,7 @@ def insert_to_notion(bookName='', bookId='', cover='', sort=0, author='', isbn='
     return response["id"]
 
 
-def add_children(id, children):
+def add_children(client, id, children):
     results = []
     for i in range(0, len(children)//100+1):
         time.sleep(0.3)
@@ -178,14 +176,14 @@ def add_children(id, children):
     return results if len(results) == len(children) else []
 
 
-def add_grandchild(grandchild, results):
+def add_grandchild(client, grandchild, results):
     for key, value in grandchild.items():
         time.sleep(0.3)
         id = results[key].get("id")
         client.blocks.children.append(block_id=id, children=[value])
 
 
-def get_db_latest_sort():
+def get_db_latest_sort(client, database_id):
     """获取database中的最新时间"""
     filter = {
         "property": "Sort",
@@ -337,28 +335,23 @@ def calculate_book_str_id(book_id):
     return result
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("weread_cookie")
-    parser.add_argument("notion_token")
-    parser.add_argument("database_id")
-    options = parser.parse_args()
-
-    database_id = options.database_id
-    notion_token = options.notion_token
+def sync(weread_cookie, notion_token, database_id):
+    # database_id = options.database_id
+    # notion_token = options.notion_token
 
     client = Client(
         auth=notion_token,
         log_level=logging.ERROR
     )
-    latest_sort = get_db_latest_sort()
+    latest_sort = get_db_latest_sort(client, database_id)
 
-    wreader = weread.WeReadAPI(options.weread_cookie)
+    wreader = weread.WeReadAPI(weread_cookie)
 
     books = wreader.get_notebooklist()
     for _book in books:
         sort = _book["sort"]
         if sort <= latest_sort: # 笔记无更新，跳过
+            logging.info("no update")
             continue
 
         book_dict = _book.get("book")
@@ -376,15 +369,16 @@ if __name__ == "__main__":
         read_info = wreader.get_read_info(bookID)
 
         # delete before reinsert
-        delete_record(bookID)
+        delete_record(client, database_id, bookID)
         
-        id = insert_to_notion(bookName=book_dict.get("title"), 
+        id = insert_to_notion(client, database_id, 
+                              bookName=book_dict.get("title"), 
                               bookId=bookID, cover=book_dict.get("cover"), 
                               sort=sort, author=book_dict.get("author"), 
                               isbn=isbn, rating=rating, noteCount=_book.get("noteCount"),
                               read_info=read_info)
         
         children, grandchild = get_children(chapters_list, summary, bookmark_list)
-        results = add_children(id, children)
+        results = add_children(client, id, children)
         if len(grandchild) > 0:
-            add_grandchild(grandchild, results)
+            add_grandchild(client, grandchild, results)
