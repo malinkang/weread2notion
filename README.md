@@ -3,9 +3,6 @@
 
 本项目通过Github Action每天定时同步微信读书笔记（划线、评语、推荐评论）到Notion。
 
-预览效果：https://book.malinkang.com
-
-
 注意：请不要在Page里面添加自己的笔记，有新的笔记的时候会删除原笔记重新添加。
 
 ## 使用
@@ -20,17 +17,18 @@
     * 浏览器打开https://www.notion.so/my-integrations
     * 点击New integration 输入name提交
     * 点击show，然后copy
-5. 复制[这个Notion模板](https://malinkang.notion.site/a7794117392d4625ace722f78742afca?v=0a9551b0702649fa9913ff4f3758ace0)，删掉所有的数据，并点击右上角设置，Connections添加你创建的Integration。
+5. 复制[这个Notion模板](https://gelco.notion.site/67639069c7b84f55b6394f16ecda0c4f?v=b5d09dc635db4b3d8ba13b200b88d823&pvs=25)，删掉所有的数据，并点击右上角设置，Connections添加你创建的Integration。
 
 6. 获取NotionDatabaseID
     * 打开Notion数据库，点击右上角的Share，然后点击Copy link
-    * 获取链接后比如 https://www.notion.so/malinkang/1b78f0fd0d03484caa00154285ffec0c?v=7ed7e3fbe69043a28d2847e76f075d99&pvs=4 中间的1b78f0fd0d03484caa00154285ffec0c就是DatabaseID
-7. 在Github的Secrets中添加以下变量
+    * 获取链接后比如https://gelco.notion.site/67639069c7b84f55b6394f16ecda0c4f?v=b5d09dc635db4b3d8ba13b200b88d823&pvs=25 中间的67639069c7b84f55b6394f16ecda0c4f就是DatabaseID
+7. 在Github的Secrets中添加以下变量来实现每日自动同步
     * 打开你fork的工程，点击Settings->Secrets and variables->New repository secret
     * 添加以下变量
         * WEREAD_COOKIE
         * NOTION_TOKEN
         * NOTION_DATABASE_ID
+8. 也可以本地运行脚本: python3 ./main.py sync 
 
 ## 更新
 
