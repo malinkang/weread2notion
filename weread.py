@@ -54,18 +54,17 @@ def get_read_info(bookId):
         return r.json()
     return None
 
-
 def get_bookinfo(bookId):
     """获取书的详情"""
     params = dict(bookId=bookId)
     r = session.get(WEREAD_BOOK_INFO, params=params)
     isbn = ""
+    newRating = 0
     if r.ok:
         data = r.json()
         isbn = data["isbn"]
         newRating = data["newRating"]/1000
     return (isbn, newRating)
-
 
 def get_review_list(bookId):
     """获取笔记"""
