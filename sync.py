@@ -1,120 +1,39 @@
 import logging
 import re
 import time
-from notion_client import Client
 from datetime import datetime
 import hashlib
-from api import weread
 from collections import defaultdict
+
 from treelib import Tree
+from notion_client import Client
+
+from api import weread
+from api.notion import BlockHelper
 
 ROOT_NODE_ID = "#root"
 BOOK_MARK_KEY = '#bookmarks'
 NOTION_MAX_LEVEL = 3
 
 
-def get_table_of_contents():
-    """获取目录"""
-    return {
-        "type": "table_of_contents",
-        "table_of_contents": {
-            "color": "default"
-        }
-    }
-
-
-def get_heading(level, content):
-    if level == 1:
-        heading = "heading_1"
-    elif level == 2:
-        heading = "heading_2"
-    else:
-        heading = "heading_3"
-    return {
-        "type": heading,
-        heading: {
-            "rich_text": [{
-                "type": "text",
-                "text": {
-                    "content": content,
-                }
-            }],
-            "color": "default",
-            "is_toggleable": False
-        }
-    }
-
-
-def get_quote(content):
-    return {
-        "type": "quote",
-        "quote": {
-            "rich_text": [{
-                "type": "text",
-                "text": {
-                    "content": content
-                },
-            }],
-            "color": "default"
-        }
-    }
-
-
-def get_callout(content, style, colorStyle, reviewId):
-    # 根据不同的划线样式设置不同的emoji 直线type=0 背景颜色是1 波浪线是2
-    emoji = "🌟"
-    if style == 0:
-        emoji = "💡"
-    elif style == 1:
-        emoji = "⭐"
-    # 如果reviewId不是空说明是笔记
-    if reviewId != None:
-        emoji = "✍️"
-    color = "default"
-    # 根据划线颜色设置文字的颜色
-    if colorStyle == 1:
-        color = "red"
-    elif colorStyle == 2:
-        color = "purple"
-    elif colorStyle == 3:
-        color = "blue"
-    elif colorStyle == 4:
-        color = "green"
-    elif colorStyle == 5:
-        color = "yellow"
-    return {
-        "type": "callout",
-        "callout": {
-            "rich_text": [{
-                "type": "text",
-                "text": {
-                    "content": content,
-                }
-            }],
-            "icon": {
-                "emoji": emoji
-            },
-            "color": color
-        }
-    }
-
-
-def delete_record(client, database_id, bookId):
+def delete_page(client, database_id, bookId):
     """检查是否已经插入过 如果已经插入了就删除"""
     time.sleep(0.3)
-    filter = {
-        "property": "BookId",
-        "rich_text": {
-            "equals": bookId
-        }
-    }
-    response = client.databases.query(database_id=database_id, filter=filter)
+
+    response = client.databases.query(
+        database_id = database_id, 
+        filter = {
+            "property": "BookId",
+            "rich_text": {
+                "equals": bookId
+            }
+    })
     for result in response["results"]:
         time.sleep(0.3)
         client.blocks.delete(block_id=result["id"])
 
 
-def insert_to_notion(client, database_id, bookName='', bookId='', cover='', sort=0, author='', isbn='', rating=0, noteCount=0, read_info=None):
+def create_page(client, database_id, bookName='', bookId='', cover='', sort=0, author='', isbn='', rating=0, noteCount=0, read_info=None):
     """插入到notion"""
     time.sleep(0.3)
     parent = {
@@ -265,7 +184,7 @@ def get_children(chapters_list, summary, bookmark_list):
 
     if len(chapters_list) > 0:
         # 添加目录
-        children.append(get_table_of_contents())
+        children.append(BlockHelper.table_of_contents())
 
         chapter_tree = gen_chapter_tree(chapters_list)
         mount_bookmarks(chapter_tree, bookmark_list)
@@ -278,31 +197,31 @@ def get_children(chapters_list, summary, bookmark_list):
                 continue
 
             data = chapter_tree[n].data
-            children.append(get_heading(data.get("level"), data.get("title")))
+            children.append(BlockHelper.heading(data.get("level"), data.get("title")))
 
             # if key in chapter_dict:
             #    # 添加章节信息
             #    children.append(get_heading(chapter_dict.get(key).get("level"), chapter_dict.get(key).get("title")))
 
             for i in data.get(BOOK_MARK_KEY, []):
-                children.append(get_callout(i.get("markText"), data.get(
+                children.append(BlockHelper.callout(i.get("markText"), data.get(
                     "style"), i.get("colorStyle"), i.get("reviewId")))
 
                 if i.get("abstract"):  # 评语，写入quote信息
-                    quote = get_quote(i.get("abstract"))
+                    quote = BlockHelper.quote(i.get("abstract"))
                     grandchild[len(children)-1] = quote
     else:
         # 如果没有章节信息
         for data in bookmark_list:
             children.append(
-                get_callout(data.get("markText"), data.get("style"), data.get("colorStyle"), data.get("reviewId")))
+                BlockHelper.callout(data.get("markText"), data.get("style"), data.get("colorStyle"), data.get("reviewId")))
 
     # 追加推荐评语
     if summary:
-        children.append(get_heading(1, "点评"))
+        children.append(BlockHelper.heading(1, "点评"))
         for i in summary:
             children.append(
-                get_callout(i.get("review").get("content"), i.get("style"), i.get("colorStyle"), i.get("review").get("reviewId")))
+                BlockHelper.callout(i.get("review").get("content"), i.get("style"), i.get("colorStyle"), i.get("review").get("reviewId")))
 
     return children, grandchild
 
@@ -382,19 +301,17 @@ def sync(weread_cookie, notion_token, database_id):
         isbn, rating = wreader.get_bookinfo(bookID)
         read_info = wreader.get_read_info(bookID)
 
-        # delete before reinsert
-        delete_record(client, database_id, bookID)
+        # delete before insert again
+        delete_page(client, database_id, bookID)
 
-        id = insert_to_notion(client, database_id,
+        id = create_page(client, database_id,
                               bookName=book_dict.get("title"),
                               bookId=bookID, cover=book_dict.get("cover"),
                               sort=sort, author=book_dict.get("author"),
-                              isbn=isbn, rating=rating, noteCount=_book.get(
-                                  "noteCount"),
+                              isbn=isbn, rating=rating, noteCount=_book.get("noteCount"),
                               read_info=read_info)
 
-        children, grandchild = get_children(
-            chapters_list, summary, bookmark_list)
+        children, grandchild = get_children(chapters_list, summary, bookmark_list)
         results = add_children(client, id, children)
         if len(grandchild) > 0:
             add_grandchild(client, grandchild, results)
