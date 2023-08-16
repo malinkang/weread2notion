@@ -1,34 +1,56 @@
+"""
+封装notion相关操作
+"""
 
-class NotionAPI:
-    def __init__(self, token):
-        self.token = token
+# class NotionAPI:
+#     """暂未启用"""
+
+#     def __init__(self, token):
+#         self.token = token
+
+#     def dumy(self):
+#         """pass"""
+#         pass
 
 class BlockHelper:
     """生成notion格式的工具函数"""
+
+    headings = {
+        1: "heading_1",
+        2: "heading_2",
+        3: "heading_3",
+    }
+
+    table_contents = {
+        "type": "table_of_contents",
+        "table_of_contents": {
+            "color": "default"
+        }
+    }
+
+    color_styles = {
+            1: "red",
+            2: "purple",
+            3: "blue",
+            4: "green",
+            5: "yellow",
+        }
+
     def __init__(self):
         pass
 
-    """获取目录"""
-    @staticmethod
-    def table_of_contents():
-        return {
-            "type": "table_of_contents",
-            "table_of_contents": {
-                "color": "default"
-            }
-        }
+    @classmethod
+    def table_of_contents(cls):
+        """获取目录"""
+        return cls.table_contents
 
-    @staticmethod
-    def heading(level, content):
-        if level == 1:
-            heading = "heading_1"
-        elif level == 2:
-            heading = "heading_2"
-        else:
-            heading = "heading_3"
+    @classmethod
+    def heading(cls, level, content):
+        """取heading格式"""""
+        heading_type = cls.headings.get(level, "heading_3")
         return {
-            "type": heading,
-            heading: {
+            "type": heading_type,
+            heading_type: {
                 "rich_text": [{
                     "type": "text",
                     "text": {
@@ -40,8 +62,9 @@ class BlockHelper:
             }
         }
 
-    @staticmethod
-    def quote(content):
+    @classmethod
+    def quote(cls, content):
+        """取引用格式"""
         return {
             "type": "quote",
             "quote": {
@@ -55,8 +78,9 @@ class BlockHelper:
             }
         }
 
-    @staticmethod
-    def callout(content, style, colorStyle, reviewId):
+    @classmethod
+    def callout(cls, content, style, color, review_id):
+        """取callout格式"""
         # 根据不同的划线样式设置不同的emoji 直线type=0 背景颜色是1 波浪线是2
         emoji = "🌟"
         if style == 0:
@@ -64,20 +88,9 @@ class BlockHelper:
         elif style == 1:
             emoji = "⭐"
         # 如果reviewId不是空说明是笔记
-        if reviewId != None:
+        if review_id is not None:
             emoji = "✍️"
-        color = "default"
-        # 根据划线颜色设置文字的颜色
-        if colorStyle == 1:
-            color = "red"
-        elif colorStyle == 2:
-            color = "purple"
-        elif colorStyle == 3:
-            color = "blue"
-        elif colorStyle == 4:
-            color = "green"
-        elif colorStyle == 5:
-            color = "yellow"
+
         return {
             "type": "callout",
             "callout": {
@@ -90,6 +103,6 @@ class BlockHelper:
                 "icon": {
                     "emoji": emoji
                 },
-                "color": color
+                "color": cls.color_styles.get(color, "default"),
             }
         }
