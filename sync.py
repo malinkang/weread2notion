@@ -10,6 +10,7 @@ from notion_client import Client
 
 from api import weread
 from api.notion import BlockHelper
+from config import CONFIG
 
 ROOT_NODE_ID = "#root"
 BOOK_MARK_KEY = '#bookmarks'
@@ -21,13 +22,13 @@ def delete_page(client, database_id, book_id):
     time.sleep(0.3)
 
     response = client.databases.query(
-        database_id = database_id, 
-        filter = {
+        database_id=database_id,
+        filter={
             "property": "BookId",
             "rich_text": {
                 "equals": book_id
             }
-    })
+        })
     for result in response["results"]:
         time.sleep(0.3)
         client.blocks.delete(block_id=result["id"])
@@ -142,7 +143,7 @@ def gen_chapter_tree(chapter_list):
         elif level > NOTION_MAX_LEVEL:  # 目前仅支持header1-3
             level = NOTION_MAX_LEVEL
 
-        parent = p.get(level - 1, root) # 取最近一次更新节点
+        parent = p.get(level - 1, root)  # 取最近一次更新节点
         chapter_uid = chapter.get('chapterUid')
         p[level] = tree.create_node(
             tag=chapter_uid, identifier=chapter_uid, parent=parent, data=chapter)
@@ -183,6 +184,21 @@ def remove_empty_chapter(chapter_tree):
                 chapter_tree.remove_node(n.identifier)
 
 
+def content_block(text: str, style: str, color: str, review_id: str) -> dict:
+    """
+    根据配置选择内容block形态
+    """
+    match CONFIG.get("notion.format", "ContentType"):
+        case "callout":
+            return BlockHelper.callout(text, style, color, review_id)
+
+        case "list":
+            return BlockHelper.bullet_list(text, style, color, review_id)
+
+        case _:
+            return BlockHelper.paragraph(text, style, color, review_id)
+
+
 def get_children(chapters_list, summary, bookmark_list):
     children = []
     grandchild = {}
@@ -202,10 +218,11 @@ def get_children(chapters_list, summary, bookmark_list):
                 continue
 
             data = chapter_tree[n].data
-            children.append(BlockHelper.heading(data.get("level"), data.get("title")))
+            children.append(BlockHelper.heading(
+                data.get("level"), data.get("title")))
 
             for i in data.get(BOOK_MARK_KEY, []):
-                children.append(BlockHelper.callout(i.get("markText"), data.get(
+                children.append(content_block(i.get("markText"), data.get(
                     "style"), i.get("colorStyle"), i.get("reviewId")))
 
                 if i.get("abstract"):  # 评语，写入quote信息
@@ -214,16 +231,15 @@ def get_children(chapters_list, summary, bookmark_list):
     else:
         # 如果没有章节信息
         for data in bookmark_list:
-            children.append(
-                BlockHelper.callout(data.get("markText"), data.get("style"), data.get("colorStyle"), data.get("reviewId")))
+            children.append(BlockHelper.callout(data.get("markText"), data.get("style"),
+                                                data.get("colorStyle"), data.get("reviewId")))
 
     # 追加推荐评语
     if summary:
         children.append(BlockHelper.heading(1, "点评"))
         for i in summary:
-            children.append(
-                BlockHelper.callout(i.get("review").get("content"), i.get("style"), 
-                                    i.get("colorStyle"), i.get("review").get("reviewId")))
+            children.append(content_block(i.get("review").get("content"), i.get("style"),
+                                          i.get("colorStyle"), i.get("review").get("reviewId")))
 
     return children, grandchild
 
@@ -305,13 +321,15 @@ def sync(weread_cookie, notion_token, database_id):
         delete_page(client, database_id, bookID)
 
         pid = create_page(client, database_id,
-                              book_name=book_dict.get("title"),
-                              book_id=bookID, cover=book_dict.get("cover"),
-                              sort=sort, author=book_dict.get("author"),
-                              isbn=isbn, rating=rating, note_count=_book.get("noteCount"),
-                              read_info=read_info)
+                          book_name=book_dict.get("title"),
+                          book_id=bookID, cover=book_dict.get("cover"),
+                          sort=sort, author=book_dict.get("author"),
+                          isbn=isbn, rating=rating, note_count=_book.get(
+                              "noteCount"),
+                          read_info=read_info)
 
-        children, grandchild = get_children(chapters_list, summary, bookmark_list)
+        children, grandchild = get_children(
+            chapters_list, summary, bookmark_list)
         results = add_children(client, pid, children)
         if len(grandchild) > 0:
             add_grandchild(client, grandchild, results)

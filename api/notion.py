@@ -77,11 +77,10 @@ class BlockHelper:
                 "color": "default"
             }
         }
-
+    
     @classmethod
-    def callout(cls, content, style, color, review_id):
-        """取callout格式"""
-        # 根据不同的划线样式设置不同的emoji 直线type=0 背景颜色是1 波浪线是2
+    def emoj_style(cls, style, review_id):
+        """根据不同的划线样式设置不同的emoji 直线type=0 背景颜色是1 波浪线是2"""
         emoji = "🌟"
         if style == 0:
             emoji = "💡"
@@ -90,7 +89,12 @@ class BlockHelper:
         # 如果reviewId不是空说明是笔记
         if review_id is not None:
             emoji = "✍️"
+        return emoji
 
+    @classmethod
+    def callout(cls, content, style, color, review_id):
+        """取callout格式"""
+        emoji = cls.emoj_style(style, review_id)
         return {
             "type": "callout",
             "callout": {
@@ -103,6 +107,40 @@ class BlockHelper:
                 "icon": {
                     "emoji": emoji
                 },
+                "color": cls.color_styles.get(color, "default"),
+            }
+        }
+
+    @classmethod
+    def paragraph(cls, content, style, color, review_id):
+        """取text格式"""
+        emoji = cls.emoj_style(style, review_id)
+        return {
+            "type": "paragraph",
+            "paragraph": {
+                    "rich_text": [{
+                        "type": "text",
+                        "text": {
+                            "content": emoji+content,
+                    }
+                }],
+            "color": cls.color_styles.get(color, "default"),
+            }
+        }
+
+    @classmethod
+    def bullet_list(cls, content, style, color, review_id):
+        """取callout格式"""
+        emoji = cls.emoj_style(style, review_id)
+        return {
+            "type": "bulleted_list_item",
+            "bulleted_list_item": {
+                "rich_text": [{
+                    "type": "text",
+                    "text": {
+                        "content": emoji+content,
+                    }
+                }],
                 "color": cls.color_styles.get(color, "default"),
             }
         }
