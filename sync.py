@@ -34,7 +34,8 @@ def delete_page(client, database_id, book_id):
         client.blocks.delete(block_id=result["id"])
 
 
-def create_page(client, database_id, book_name='', book_id='', cover='', sort=0, author='', isbn='', rating=0, note_count=0, read_info=None):
+def create_page(client, database_id, book_name='', book_id='', cover='', sort=0, author='', isbn='', 
+                rating=0, category='',note_count=0, read_info=None):
     """插入到notion"""
     time.sleep(0.3)
     parent = {
@@ -51,6 +52,7 @@ def create_page(client, database_id, book_name='', book_id='', cover='', sort=0,
         "Rating": {"number": rating},
         "Cover": {"files": [{"type": "external", "name": "Cover", "external": {"url": cover}}]},
         "NoteCount": {"number": note_count},
+        "Category": {"rich_text": [{"type": "text", "text": {"content": category}}]},
     }
 
     if read_info:
@@ -314,7 +316,7 @@ def sync(weread_cookie, notion_token, database_id):
         bookmark_list = sorted(bookmark_list, key=lambda x: (
             x.get("chapterUid", 1), 0 if (x.get("range", "") == "" or x.get("range").split("-")[0] == "") else int(x.get("range").split("-")[0])))
 
-        isbn, rating = wreader.get_bookinfo(bookID)
+        isbn, rating, category = wreader.get_bookinfo(bookID)
         read_info = wreader.get_read_info(bookID)
 
         # delete before insert again
@@ -324,8 +326,8 @@ def sync(weread_cookie, notion_token, database_id):
                           book_name=book_dict.get("title"),
                           book_id=bookID, cover=book_dict.get("cover"),
                           sort=sort, author=book_dict.get("author"),
-                          isbn=isbn, rating=rating, note_count=_book.get(
-                              "noteCount"),
+                          isbn=isbn, rating=rating, category=category,
+                          note_count=_book.get("noteCount"),
                           read_info=read_info)
 
         children, grandchild = get_children(

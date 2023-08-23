@@ -36,3 +36,4 @@
 - feat: 调整内容组织方式，增加对多级目录的支持。会将笔记归属的目录链条全部写入notion。注意notion仅支持1-3级目录，大于3时全部当做3级目录。
 - feat: 增加lastReadingDate。注意如果没有笔记操作则不会更新该条记录。
 - feat: 增加内容block组织形式配置，可以将内容展现形态指定为paragraph/list/callout，详见default.ini配置
+- feat: 增加Category分类字段，用于notion中按分组聚合展示

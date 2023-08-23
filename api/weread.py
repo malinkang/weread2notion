@@ -90,7 +90,7 @@ class WeReadAPI:
             return [], []
 
 
-    def get_bookinfo(self, bookId):
+    def get_bookinfo(self, bookId: str) -> list:
         """获取书的详情"""
         params = dict(bookId=bookId)
         r = self.session.get(self.WEREAD_BOOK_INFO, params=params)
@@ -98,8 +98,9 @@ class WeReadAPI:
         if r.ok:
             data = r.json()
             isbn = data["isbn"]
-            newRating = data["newRating"]/1000
-        return (isbn, newRating)
+            rating = data["newRating"]/1000
+            category = data.get("category", "")
+        return (isbn, rating, category)
     
     def get_read_info(self, bookId):
         params = dict(bookId=bookId, readingDetail=1,
