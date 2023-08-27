@@ -92,9 +92,11 @@ class BlockHelper:
         return emoji
 
     @classmethod
-    def callout(cls, content, style, color, review_id):
+    def callout(cls, content, style, color, review_id, enable_emoj=False):
         """取callout格式"""
-        emoji = cls.emoj_style(style, review_id)
+        emoji = ""
+        if enable_emoj:
+            emoji = cls.emoj_style(style, review_id)
         return {
             "type": "callout",
             "callout": {
@@ -112,9 +114,11 @@ class BlockHelper:
         }
 
     @classmethod
-    def paragraph(cls, content, style, color, review_id):
+    def paragraph(cls, content, style, color, review_id, enable_emoj=False):
         """取text格式"""
-        emoji = cls.emoj_style(style, review_id)
+        emoji = ""
+        if enable_emoj:
+            emoji = cls.emoj_style(style, review_id)
         return {
             "type": "paragraph",
             "paragraph": {
@@ -129,9 +133,11 @@ class BlockHelper:
         }
 
     @classmethod
-    def bullet_list(cls, content, style, color, review_id):
+    def bullet_list(cls, content, style, color, review_id, enable_emoj=False):
         """取callout格式"""
-        emoji = cls.emoj_style(style, review_id)
+        emoji = ""
+        if enable_emoj:
+            emoji = cls.emoj_style(style, review_id)
         return {
             "type": "bulleted_list_item",
             "bulleted_list_item": {

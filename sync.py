@@ -190,15 +190,16 @@ def content_block(text: str, style: str, color: str, review_id: str) -> dict:
     """
     根据配置选择内容block形态
     """
+    enable_emoj = CONFIG.getboolean("notion.format", "EnableEmoj")
     match CONFIG.get("notion.format", "ContentType"):
         case "callout":
-            return BlockHelper.callout(text, style, color, review_id)
+            return BlockHelper.callout(text, style, color, review_id, enable_emoj=enable_emoj)
 
         case "list":
-            return BlockHelper.bullet_list(text, style, color, review_id)
+            return BlockHelper.bullet_list(text, style, color, review_id, enable_emoj=enable_emoj)
 
         case _:
-            return BlockHelper.paragraph(text, style, color, review_id)
+            return BlockHelper.paragraph(text, style, color, review_id, enable_emoj=enable_emoj)
 
 
 def get_children(chapters_list, summary, bookmark_list):
@@ -224,8 +225,7 @@ def get_children(chapters_list, summary, bookmark_list):
                 data.get("level"), data.get("title")))
 
             for i in data.get(BOOK_MARK_KEY, []):
-                children.append(content_block(i.get("markText"), data.get(
-                    "style"), i.get("colorStyle"), i.get("reviewId")))
+                children.append(content_block(i.get("markText"), i.get("style"), i.get("colorStyle"), i.get("reviewId")))
 
                 if i.get("abstract"):  # 评语，写入quote信息
                     quote = BlockHelper.quote(i.get("abstract"))
@@ -233,15 +233,15 @@ def get_children(chapters_list, summary, bookmark_list):
     else:
         # 如果没有章节信息
         for data in bookmark_list:
-            children.append(BlockHelper.callout(data.get("markText"), data.get("style"),
-                                                data.get("colorStyle"), data.get("reviewId")))
+            # children.append(BlockHelper.callout(data.get("markText"), data.get("style"),
+            #                                     data.get("colorStyle"), data.get("reviewId")))
+            children.append(content_block(data.get("markText"), data.get("style"), data.get("colorStyle"), data.get("reviewId")))
 
     # 追加推荐评语
     if summary:
         children.append(BlockHelper.heading(1, "点评"))
         for i in summary:
-            children.append(content_block(i.get("review").get("content"), i.get("style"),
-                                          i.get("colorStyle"), i.get("review").get("reviewId")))
+            children.append(content_block(i.get("review").get("content"), i.get("style"),i.get("colorStyle"), i.get("review").get("reviewId")))
 
     return children, grandchild
 

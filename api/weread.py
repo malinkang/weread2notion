@@ -4,22 +4,35 @@ from requests.utils import cookiejar_from_dict
 import requests
 
 class WeReadAPI:
+    """微信读书API"""
+
+    # 全量书籍笔记信息列表
     WEREAD_NOTEBOOKS_URL = "https://i.weread.qq.com/user/notebooks"
+
+    # 章节信息列表
     WEREAD_CHAPTER_INFO = "https://i.weread.qq.com/book/chapterInfos"
+    
+    # 书籍划线
     WEREAD_BOOKMARKLIST_URL = "https://i.weread.qq.com/book/bookmarklist"
+
+    # 获取笔记列表，包括笔记、推荐总结
     WEREAD_REVIEW_LIST_URL = "https://i.weread.qq.com/review/list"
+
+    # 数据详情
     WEREAD_BOOK_INFO = "https://i.weread.qq.com/book/info"
+
+    # 读取进度等
     WEREAD_READ_INFO_URL = "https://i.weread.qq.com/book/readinfo"
 
     WEREAD_URL = "https://weread.qq.com/"
 
     def __init__(self, cookie):
         session = requests.Session()
-        session.cookies = self.parse_cookie_string(cookie)
+        session.cookies = self._parse_cookie(cookie)
         session.get(self.WEREAD_URL)
         self.session = session
 
-    def parse_cookie_string(self, cookie_string):
+    def _parse_cookie(self, cookie_string):
         cookie = SimpleCookie()
         cookie.load(cookie_string)
         cookies_dict = {}
