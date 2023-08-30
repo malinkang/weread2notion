@@ -144,7 +144,7 @@ def get_callout(content, style, colorStyle, reviewId):
                     "url": "https://www.notion.so/icons/bell_gray.svg"
                 }
             },
-            "color": color
+            "color": "default"
         }
     }
 
