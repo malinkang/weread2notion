@@ -127,6 +127,13 @@ def get_quote(content):
 
 
 def get_callout(content, style, colorStyle, reviewId):
+    # 直线0 背景颜色1 波浪线是2
+    if style == 1:
+        url = "https://www.notion.so/icons/bell_gray.svg"
+    elif style == 2:
+        url = "https://www.notion.so/icons/airplane_gray.svg"
+    else:
+        url = "https://www.notion.so/icons/cloud-yes_gray"
     return {
         "type": "callout",
         "callout": {
@@ -141,7 +148,7 @@ def get_callout(content, style, colorStyle, reviewId):
             "icon": {
                 "type": "external",
                 "external": {
-                    "url": "https://www.notion.so/icons/bell_gray.svg"
+                    "url": url
                 }
             },
             "color": "default"
