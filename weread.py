@@ -133,7 +133,7 @@ def get_callout(content, style, colorStyle, reviewId):
     elif style == 2:
         url = "https://www.notion.so/icons/airplane_gray.svg"
     else:
-        url = "https://www.notion.so/icons/cloud-yes_gray"
+        url = "https://www.notion.so/icons/cloud-yes_gray.svg"
     return {
         "type": "callout",
         "callout": {
