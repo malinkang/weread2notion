@@ -303,7 +303,7 @@ def get_children(chapter, summary, bookmark_list):
                     chapter.get(key).get("level"), chapter.get(key).get("title")))
             for i in value:
                 callout = get_callout(
-                    i.get("markText"), data.get("style"), i.get("colorStyle"), i.get("reviewId"))
+                    i.get("markText"), i.get("style"), i.get("colorStyle"), i.get("reviewId"))
                 children.append(callout)
                 if i.get("abstract") != None and i.get("abstract") != "":
                     quote = get_quote(i.get("abstract"))
