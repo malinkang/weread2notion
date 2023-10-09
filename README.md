@@ -5,8 +5,9 @@
 
 预览效果：https://book.malinkang.com
 
+> [!WARNING]  
+> 请不要在Page里面添加自己的笔记，有新的笔记的时候会删除原笔记重新添加。
 
-注意：请不要在Page里面添加自己的笔记，有新的笔记的时候会删除原笔记重新添加。
 
 ## 使用
 
@@ -20,7 +21,7 @@
     * 浏览器打开https://www.notion.so/my-integrations
     * 点击New integration 输入name提交
     * 点击show，然后copy
-5. 复制[这个Notion模板](https://malinkang.notion.site/a7794117392d4625ace722f78742afca?v=0a9551b0702649fa9913ff4f3758ace0)，删掉所有的数据，并点击右上角设置，Connections添加你创建的Integration。
+5. 复制[这个Notion模板](https://www.notion.so/malinkang/517ada8ea6534ae0afeb0b9e23d5554c?v=bdc3188f8fc04af5965293e53064722c&pvs=4)，删掉所有的数据，并点击右上角设置，Connections添加你创建的Integration。
 
 6. 获取NotionDatabaseID
     * 打开Notion数据库，点击右上角的Share，然后点击Copy link
@@ -31,4 +32,8 @@
         * WEREAD_COOKIE
         * NOTION_TOKEN
         * NOTION_DATABASE_ID
+
+## 微信群
+
+![image](https://github.com/malinkang/weread_to_notion/assets/3365208/70bc0bfb-f9cc-45d8-a9c5-dee604e6331f)
 
