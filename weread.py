@@ -397,6 +397,8 @@ if __name__ == "__main__":
             book = book.get("book")
             title = book.get("title")
             cover = book.get("cover")
+            if book.get("author") == "公众号" and book.get("cover").endswith("/0"):
+                cover += ".jpg"
             bookId = book.get("bookId")
             author = book.get("author")
             check(bookId)
