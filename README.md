@@ -35,5 +35,5 @@
 
 ## 微信群
 
-![image](https://github.com/malinkang/weread_to_notion/assets/3365208/70bc0bfb-f9cc-45d8-a9c5-dee604e6331f)
+![image](https://drive.malinkang.com/api/raw/?path=/Pictures/weread2notion.jpg)
 
