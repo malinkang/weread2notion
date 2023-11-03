@@ -21,7 +21,7 @@
     * 浏览器打开https://www.notion.so/my-integrations
     * 点击New integration 输入name提交
     * 点击show，然后copy
-5. 复制[这个Notion模板](https://www.notion.so/malinkang/517ada8ea6534ae0afeb0b9e23d5554c?v=bdc3188f8fc04af5965293e53064722c&pvs=4)，删掉所有的数据，并点击右上角设置，Connections添加你创建的Integration。
+5. 复制[这个Notion模板](https://malinkang.notion.site/e27842548a6d4a81bc7aea736d90d6dd?v=b255858d3eaa409f97f1ecb32a14a5b6&pvs=4)，删掉所有的数据，并点击右上角设置，Connections添加你创建的Integration。
 
 6. 获取NotionDatabaseID
     * 打开Notion数据库，点击右上角的Share，然后点击Copy link
