@@ -232,13 +232,16 @@ def insert_to_notion(bookName, bookId, cover, sort, author,isbn,rating):
         if "finishedDate" in read_info:
             properties["Date"] = {"date": {"start": datetime.utcfromtimestamp(read_info.get(
                 "finishedDate")).strftime("%Y-%m-%d %H:%M:%S"), "time_zone": "Asia/Shanghai"}}
-
-    icon = {
-        "type": "external",
-        "external": {
-            "url": cover
+            
+    if(cover.startswith("http")):
+        icon = {
+            "type": "external",
+            "external": {
+                "url": cover
+            }
         }
-    }
+    else:
+        icon = {"type": "emoji","emoji": "📚"}
     # notion api 限制100个block
     response = client.pages.create(
         parent=parent, icon=icon, properties=properties)
@@ -406,8 +409,6 @@ if __name__ == "__main__":
             book = book.get("book")
             title = book.get("title")
             cover = book.get("cover")
-            if book.get("author") == "公众号" and book.get("cover").endswith("/0"):
-                cover += ".jpg"
             bookId = book.get("bookId")
             author = book.get("author")
             print(f"正在同步 {title} ,一共{len(books)}本，当前是第{i}本。")
