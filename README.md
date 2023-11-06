@@ -35,5 +35,5 @@
 
 ## 微信群
 
-![image](https://drive.malinkang.com/api/raw/?path=/Pictures/weread2notion.jpg)
+![image](WechatIMG20.jpg)
 
