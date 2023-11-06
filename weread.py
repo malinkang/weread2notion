@@ -309,15 +309,15 @@ def get_children(chapter, summary, bookmark_list):
             if (chapterUid not in d):
                 d[chapterUid] = []
             d[chapterUid].append(data)
-        for key, value in d .items():
+        for key, value in d.items():
             if key in chapter:
                 # 添加章节
                 children.append(get_heading(
                     chapter.get(key).get("level"), chapter.get(key).get("title")))
             for i in value:
-                callout = get_callout(
-                    i.get("markText"), data.get("style"), i.get("colorStyle"), i.get("reviewId"))
-                children.append(callout)
+                markText = i.get("markText")
+                for j in range(0, len(markText)//2000+1):
+                    children.append(get_callout(markText[j*2000:(j+1)*2000],i.get("style"), i.get("colorStyle"), i.get("reviewId")))
                 if i.get("abstract") != None and i.get("abstract") != "":
                     quote = get_quote(i.get("abstract"))
                     grandchild[len(children)-1] = quote
@@ -325,13 +325,17 @@ def get_children(chapter, summary, bookmark_list):
     else:
         # 如果没有章节信息
         for data in bookmark_list:
-            children.append(get_callout(data.get("markText"),
-                            data.get("style"), data.get("colorStyle"), data.get("reviewId")))
+            markText = data.get("markText")
+            for i in range(0, len(markText)//2000+1):
+                children.append(get_callout(markText[i*200:(i+1)*2000],
+                                data.get("style"), data.get("colorStyle"), data.get("reviewId")))
     if summary != None and len(summary) > 0:
         children.append(get_heading(1, "点评"))
         for i in summary:
-            children.append(get_callout(i.get("review").get("content"), i.get(
-                "style"), i.get("colorStyle"), i.get("review").get("reviewId")))
+            content = i.get("review").get("content")
+            for j in range(0, len(content)//2000+1):
+                children.append(get_callout(content[j*2000:(j+1)*2000], i.get(
+                    "style"), i.get("colorStyle"), i.get("review").get("reviewId")))
     return children, grandchild
 
 def transform_id(book_id):
@@ -392,8 +396,10 @@ if __name__ == "__main__":
     session.get(WEREAD_URL)
     latest_sort = get_sort()
     books = get_notebooklist()
+    i = 0
     if (books != None):
         for book in books:
+            i +=1
             sort = book["sort"]
             if sort <= latest_sort:
                 continue
@@ -402,17 +408,18 @@ if __name__ == "__main__":
             cover = book.get("cover")
             bookId = book.get("bookId")
             author = book.get("author")
+            print(f"正在同步 {title} ,一共{len(books)}本，当前是第{i}本。")
             check(bookId)
+            isbn,rating = get_bookinfo(bookId)
+            id = insert_to_notion(title, bookId, cover, sort, author,isbn,rating)
             chapter = get_chapter_info(bookId)
             bookmark_list = get_bookmark_list(bookId)
             summary, reviews = get_review_list(bookId)
             bookmark_list.extend(reviews)
             bookmark_list = sorted(bookmark_list, key=lambda x: (
                 x.get("chapterUid", 1), 0 if (x.get("range", "") == "" or x.get("range").split("-")[0]=="" ) else int(x.get("range").split("-")[0])))
-            isbn,rating = get_bookinfo(bookId)
             children, grandchild = get_children(
                 chapter, summary, bookmark_list)
-            id = insert_to_notion(title, bookId, cover, sort, author,isbn,rating)
             results = add_children(id, children)
             if(len(grandchild)>0 and results!=None):
                 add_grandchild(grandchild, results)
