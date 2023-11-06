@@ -197,7 +197,7 @@ def get_chapter_info(bookId):
     return None
 
 
-def insert_to_notion(bookName, bookId, cover, sort, author,isbn,rating):
+def insert_to_notion(bookName, bookId, cover, sort, author,isbn,rating,categories):
     """插入到notion"""
     time.sleep(0.3)
     parent = {
@@ -214,12 +214,14 @@ def insert_to_notion(bookName, bookId, cover, sort, author,isbn,rating):
         "Rating": {"number": rating},
         "Cover": {"files": [{"type": "external", "name": "Cover", "external": {"url": cover}}]},
     }
+    if(categories!=None):
+        multi_select = [{"name": x} for x in categories]
+        properties["Categories"] = {"multi_select":multi_select}
     read_info = get_read_info(bookId=bookId)
     if read_info != None:
         markedStatus = read_info.get("markedStatus", 0)
         readingTime = read_info.get("readingTime", 0)
         readingProgress = read_info.get("readingProgress", 0)
-        print(f"readingProgress = {readingProgress}")
         format_time = ""
         hour = readingTime // 3600
         if hour > 0:
@@ -416,10 +418,13 @@ if __name__ == "__main__":
                 cover += ".jpg"
             bookId = book.get("bookId")
             author = book.get("author")
+            categories = book.get("categories")
+            if(categories!=None):
+                categories = [x["title"] for x in categories]
             print(f"正在同步 {title} ,一共{len(books)}本，当前是第{i}本。")
             check(bookId)
             isbn,rating = get_bookinfo(bookId)
-            id = insert_to_notion(title, bookId, cover, sort, author,isbn,rating)
+            id = insert_to_notion(title, bookId, cover, sort, author,isbn,rating,categories)
             chapter = get_chapter_info(bookId)
             bookmark_list = get_bookmark_list(bookId)
             summary, reviews = get_review_list(bookId)
