@@ -218,6 +218,8 @@ def insert_to_notion(bookName, bookId, cover, sort, author,isbn,rating):
     if read_info != None:
         markedStatus = read_info.get("markedStatus", 0)
         readingTime = read_info.get("readingTime", 0)
+        readingProgress = read_info.get("readingProgress", 0)
+        print(f"readingProgress = {readingProgress}")
         format_time = ""
         hour = readingTime // 3600
         if hour > 0:
@@ -229,6 +231,7 @@ def insert_to_notion(bookName, bookId, cover, sort, author,isbn,rating):
             "name": "读完" if markedStatus == 4 else "在读"}}
         properties["ReadingTime"] = {"rich_text": [
             {"type": "text", "text": {"content": format_time}}]}
+        properties["Progress"] ={"number": readingProgress}
         if "finishedDate" in read_info:
             properties["Date"] = {"date": {"start": datetime.utcfromtimestamp(read_info.get(
                 "finishedDate")).strftime("%Y-%m-%d %H:%M:%S"), "time_zone": "Asia/Shanghai"}}
