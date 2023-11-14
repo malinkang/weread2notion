@@ -35,5 +35,6 @@
 
 ## 微信群
 
-![image](WechatIMG20.jpg)
+ ![image](https://github.com/malinkang/weread2notion/assets/3365208/706d9ed2-9c2b-4207-8d8e-9062228a20fa)
+
 
