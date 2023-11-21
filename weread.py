@@ -399,7 +399,7 @@ def download_image(url, save_dir='cover'):
     # 检查文件是否已经存在，如果存在则不进行下载
     if os.path.exists(save_path):
         print(f"File {file_name} already exists. Skipping download.")
-        return
+        return save_path
 
     response = requests.get(url, stream=True)
     if response.status_code == 200:
@@ -416,8 +416,8 @@ if __name__ == "__main__":
     parser.add_argument("weread_cookie")
     parser.add_argument("notion_token")
     parser.add_argument("database_id")
-    parser.add_argument("repository")
     parser.add_argument("ref")
+    parser.add_argument("repository")
     options = parser.parse_args()
     weread_cookie = options.weread_cookie
     database_id = options.database_id
