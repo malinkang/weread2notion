@@ -132,7 +132,7 @@ def get_quote(content):
 
 def get_callout(content, style, colorStyle, reviewId):
     # 根据不同的划线样式设置不同的emoji 直线type=0 背景颜色是1 波浪线是2
-    emoji = "🌟"
+    emoji = "〰️"
     if style == 0:
         emoji = "💡"
     elif style == 1:
@@ -324,6 +324,11 @@ def get_children(chapter, summary, bookmark_list):
                 children.append(get_heading(
                     chapter.get(key).get("level"), chapter.get(key).get("title")))
             for i in value:
+                if(i.get("reviewId")==None):
+                    if(i.get("style") not in styles):
+                        continue
+                    if(i.get("colorStyle") not in colors):
+                        continue
                 markText = i.get("markText")
                 for j in range(0, len(markText)//2000+1):
                     children.append(get_callout(markText[j*2000:(j+1)*2000],i.get("style"), i.get("colorStyle"), i.get("reviewId")))
@@ -334,9 +339,14 @@ def get_children(chapter, summary, bookmark_list):
     else:
         # 如果没有章节信息
         for data in bookmark_list:
+            if(data.get("reviewId")==None):
+                if(data.get("style") not in styles):
+                    continue
+                if(data.get("colorStyle") not in colors):
+                    continue
             markText = data.get("markText")
             for i in range(0, len(markText)//2000+1):
-                children.append(get_callout(markText[i*200:(i+1)*2000],
+                children.append(get_callout(markText[i*2000:(i+1)*2000],
                                 data.get("style"), data.get("colorStyle"), data.get("reviewId")))
     if summary != None and len(summary) > 0:
         children.append(get_heading(1, "点评"))
@@ -418,6 +428,8 @@ if __name__ == "__main__":
     parser.add_argument("database_id")
     parser.add_argument("ref")
     parser.add_argument("repository")
+    parser.add_argument("--styles",nargs="+",type=int,help="划线样式")
+    parser.add_argument("--colors",nargs="+",type=int,help="划线颜色")
     options = parser.parse_args()
     weread_cookie = options.weread_cookie
     database_id = options.database_id
@@ -425,7 +437,8 @@ if __name__ == "__main__":
     ref = options.ref
     branch = ref.split('/')[-1]
     repository = options.repository
-    print(f"ref = {ref}, repository = {repository}")
+    styles = options.styles
+    colors = options.colors
     session = requests.Session()
     session.cookies = parse_cookie_string(weread_cookie)
     client = Client(
