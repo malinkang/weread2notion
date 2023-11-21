@@ -23,3 +23,10 @@ jobs:
       - name: weread sync
         run: |
           python weread.py "${{secrets.WEREAD_COOKIE}}" "${{secrets.NOTION_TOKEN}}" "${{secrets.NOTION_DATABASE_ID}}" "${{ github.ref }}" "${{ github.repository }}"
+      - name: Push Cover
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add .
+          git commit -m 'add new cover' || echo "nothing to commit"
+          git push || echo "nothing to push"
