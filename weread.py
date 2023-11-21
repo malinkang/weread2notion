@@ -3,6 +3,7 @@
 import argparse
 import json
 import logging
+import os
 import re
 import time
 from notion_client import Client
@@ -386,6 +387,30 @@ def calculate_book_str_id(book_id):
     result += md5.hexdigest()[0:3]
     return result
 
+def download_image(url, save_dir='cover'):
+    # 确保目录存在，如果不存在则创建
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
+
+    # 获取文件名，使用 URL 最后一个 '/' 之后的字符串
+    file_name = url.split('/')[-1]+".jpg"
+    save_path = os.path.join(save_dir, file_name)
+
+    # 检查文件是否已经存在，如果存在则不进行下载
+    if os.path.exists(save_path):
+        print(f"File {file_name} already exists. Skipping download.")
+        return
+
+    response = requests.get(url, stream=True)
+    if response.status_code == 200:
+        with open(save_path, 'wb') as file:
+            for chunk in response.iter_content(chunk_size=128):
+                file.write(chunk)
+        print(f"Image downloaded successfully to {save_path}")
+    else:
+        print(f"Failed to download image. Status code: {response.status_code}")
+    return save_path
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("weread_cookie")
@@ -398,8 +423,9 @@ if __name__ == "__main__":
     database_id = options.database_id
     notion_token = options.notion_token
     ref = options.ref
+    branch = ref.split('/')[-1]
     repository = options.repository
-    print(f"ref = $ref, repository = $repository")
+    print(f"ref = {ref}, repository = {repository}")
     session = requests.Session()
     session.cookies = parse_cookie_string(weread_cookie)
     client = Client(
@@ -421,6 +447,10 @@ if __name__ == "__main__":
             cover = book.get("cover")
             if book.get("author") == "公众号" and book.get("cover").endswith("/0"):
                 cover += ".jpg"
+            if(cover.startswith("http") and not cover.endswith(".jpg")):
+                path = download_image(cover)
+                cover = "https://raw.githubusercontent.com/{repository}/{branch}/{path}"
+                print(cover)
             bookId = book.get("bookId")
             author = book.get("author")
             categories = book.get("categories")
