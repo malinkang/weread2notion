@@ -449,7 +449,7 @@ if __name__ == "__main__":
                 cover += ".jpg"
             if(cover.startswith("http") and not cover.endswith(".jpg")):
                 path = download_image(cover)
-                cover = "https://raw.githubusercontent.com/{repository}/{branch}/{path}"
+                cover = f"https://raw.githubusercontent.com/{repository}/{branch}/{path}"
                 print(cover)
             bookId = book.get("bookId")
             author = book.get("author")
