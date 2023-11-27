@@ -324,7 +324,7 @@ def get_children(chapter, summary, bookmark_list):
                 children.append(get_heading(
                     chapter.get(key).get("level"), chapter.get(key).get("title")))
             for i in value:
-                if(i.get("reviewId")==None):
+                if(data.get("reviewId")==None and "style" in i and "colorStyle" in i):
                     if(i.get("style") not in styles):
                         continue
                     if(i.get("colorStyle") not in colors):
@@ -339,7 +339,7 @@ def get_children(chapter, summary, bookmark_list):
     else:
         # 如果没有章节信息
         for data in bookmark_list:
-            if(data.get("reviewId")==None):
+            if(data.get("reviewId")==None and "style" in data and "colorStyle" in data):
                 if(data.get("style") not in styles):
                     continue
                 if(data.get("colorStyle") not in colors):
