@@ -42,7 +42,7 @@
 
 如果你觉得本项目帮助了你，请作者喝一杯咖啡，你的支持是作者最大的动力。本项目会持续更新。
 
-![](./asset/9.jpg)
+![](./asset/WechatIMG27.jpg)
 
 ## 问题解答
 
@@ -66,6 +66,7 @@
 ## 微信群
 > [!WARNING]  
 > 微信群已满，加我备注微信读书，我拉你进群。
+> 也可以加TG群：https://t.me/wereadnotion
 
  ![image](./asset/WechatIMG24.jpg)
 
