@@ -64,7 +64,9 @@
 
 
 ## 微信群
+> [!WARNING]  
+> 微信群已满，加我备注微信读书，我拉你进群。
 
- ![image](./asset/10.jpg)
+ ![image](./asset/WechatIMG24.jpg)
 
 

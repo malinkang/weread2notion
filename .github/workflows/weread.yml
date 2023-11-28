@@ -22,7 +22,7 @@ jobs:
           pip install -r requirements.txt
       - name: weread sync
         run: |
-          python weread.py "${{secrets.WEREAD_COOKIE}}" "${{secrets.NOTION_TOKEN}}" "${{secrets.NOTION_DATABASE_ID}}" "${{ github.ref }}" "${{ github.repository }}" --styles 0 1 2 --colors 1 2 3 4 5
+          python weread.py "${{secrets.WEREAD_COOKIE}}" "${{secrets.NOTION_TOKEN}}" "${{secrets.NOTION_DATABASE_ID}}" "${{ github.ref }}" "${{ github.repository }}" --styles 0 1 2 --colors 0 1 2 3 4 5
       - name: Push Cover
         run: |
           git config --local user.email "action@github.com"
