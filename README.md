@@ -13,6 +13,8 @@
 
 使用文档：https://malinkang.com/posts/weread2notion/
 
+热力图使用文档：https://malinkang.com/posts/github_heatmap/
+
 ## 捐赠
 
 如果你觉得本项目帮助了你，请作者喝一杯咖啡，你的支持是作者最大的动力。本项目会持续更新。
