@@ -223,8 +223,8 @@ def get_children(chapter, summary, bookmark_list):
                 if data.get("reviewId") == None and "style" in i and "colorStyle" in i:
                     if i.get("style") not in styles:
                         continue
-                    if i.get("colorStyle") not in colors:
-                        continue
+                    # if i.get("colorStyle") not in colors:
+                    #     continue
                 markText = i.get("markText")
                 for j in range(0, len(markText) // 2000 + 1):
                     children.append(
