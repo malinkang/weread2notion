@@ -1,4 +1,4 @@
-name: weread sync
+name: weread sync2
 
 on:
   workflow_dispatch:
