@@ -32,3 +32,4 @@
         * NOTION_TOKEN
         * NOTION_DATABASE_ID
 
+[![weread sync](https://github.com/Hermhades/weread_to_notion/actions/workflows/weread.yml/badge.svg)](https://github.com/Hermhades/weread_to_notion/actions/workflows/weread.yml)
