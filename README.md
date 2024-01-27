@@ -1,15 +1,10 @@
 # 将微信读书划线和笔记同步到Notion
-
-
 本项目通过Github Action每天定时同步微信读书划线到Notion。
-
 预览效果：https://book.malinkang.com
 
+**注意：请不要在Page里面添加自己的笔记，有新的笔记的时候会删除原笔记重新添加。**
 
-注意：请不要在Page里面添加自己的笔记，有新的笔记的时候会删除原笔记重新添加。
-
-## 使用
-
+## 配置步骤
 1. star本项目
 2. fork这个工程
 3. 获取微信读书的Cookie
@@ -21,7 +16,6 @@
     * 点击New integration 输入name提交
     * 点击show，然后copy
 5. 复制[这个Notion模板](https://malinkang.notion.site/a7794117392d4625ace722f78742afca?v=0a9551b0702649fa9913ff4f3758ace0)，删掉所有的数据，并点击右上角设置，Connections添加你创建的Integration。
-
 6. 获取NotionDatabaseID
     * 打开Notion数据库，点击右上角的Share，然后点击Copy link
     * 获取链接后比如 https://www.notion.so/malinkang/1b78f0fd0d03484caa00154285ffec0c?v=7ed7e3fbe69043a28d2847e76f075d99&pvs=4 中间的1b78f0fd0d03484caa00154285ffec0c就是DatabaseID
@@ -32,4 +26,6 @@
         * NOTION_TOKEN
         * NOTION_DATABASE_ID
 
-[![weread sync](https://github.com/Hermhades/weread_to_notion/actions/workflows/weread.yml/badge.svg)](https://github.com/Hermhades/weread_to_notion/actions/workflows/weread.yml)
+### 状态监控
+[![sync1](https://github.com/Hermhades/weread_to_notion/actions/workflows/weread.yml/badge.svg)](https://github.com/Hermhades/weread_to_notion/actions/workflows/weread.yml)
+[![sync2](https://github.com/Hermhades/weread_to_notion/actions/workflows/weread2.yml/badge.svg)](https://github.com/Hermhades/weread_to_notion/actions/workflows/weread2.yml)
