@@ -155,20 +155,33 @@ def get_callout(content, style, colorStyle, reviewId):
         }
     }
 
-def check(bookId):
+def preUpdate(bookId):
     """检查是否已经插入过 如果已经插入了就删除"""
-    time.sleep(0.3)
+    # 如果lock打开，则不处理
     filter = {
-        "property": "BookId",
-        "rich_text": {
-            "equals": bookId
-        }
+        "and": [
+            {
+                "property": "BookId",
+                "rich_text": {
+                    "equals": bookId
+                }
+            },
+            {
+                "property": "lock",
+                "checkbox": {
+                    "equals": false
+                }
+            }
+        ]
     }
+    time.sleep(0.35)
     response = client.databases.query(database_id=database_id, filter=filter)
+    if not response["results"]:
+        return False
     for result in response["results"]:
-        time.sleep(0.3)
+        time.sleep(0.35)
         client.blocks.delete(block_id=result["id"])
-
+    return True
 
 def get_chapter_info(bookId):
     """获取章节信息"""
@@ -389,7 +402,8 @@ if __name__ == "__main__":
             cover = book.get("cover")
             bookId = book.get("bookId")
             author = book.get("author")
-            check(bookId)
+            if not preUpdate(bookId):
+                continue
             chapter = get_chapter_info(bookId)
             bookmark_list = get_bookmark_list(bookId)
             summary, reviews = get_review_list(bookId)
@@ -399,7 +413,7 @@ if __name__ == "__main__":
             isbn,rating = get_bookinfo(bookId)
             children, grandchild = get_children(
                 chapter, summary, bookmark_list)
-            id = insert_to_notion(title, bookId, cover, sort, author,isbn,rating)
+            id = insert_to_notion(title, bookId, cover, sort, author, isbn, rating)
             results = add_children(id, children)
             if(len(grandchild)>0 and results!=None):
                 add_grandchild(grandchild, results)
