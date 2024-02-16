@@ -13,8 +13,9 @@
 
 > [!IMPORTANT]  
 > 关注公众号获取教程
+![扫码_搜索联合传播样式-标准色版](https://github.com/malinkang/weread2notion/assets/3365208/191900c6-958e-4f9b-908d-a40a54889b5e)
 
-![扫码_搜索联合传播样式-标准色版](https://github.com/malinkang/weread2notion-pro/assets/3365208/c29c718a-e649-47cd-b8c1-810bbab4c335)
+
 ## 群
 > [!IMPORTANT]  
 > 欢迎加入微信群讨论。可以讨论使用中遇到的任何问题，也可以讨论Notion使用，后续我也会在群中分享更多Notion自动化工具。
