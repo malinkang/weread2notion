@@ -13,13 +13,16 @@
 
 > [!IMPORTANT]  
 > 关注公众号获取教程
+
 ![扫码_搜索联合传播样式-标准色版](https://github.com/malinkang/weread2notion/assets/3365208/191900c6-958e-4f9b-908d-a40a54889b5e)
 
 
 ## 群
 > [!IMPORTANT]  
 > 欢迎加入微信群讨论。可以讨论使用中遇到的任何问题，也可以讨论Notion使用，后续我也会在群中分享更多Notion自动化工具。
-![WechatIMG3](https://github.com/malinkang/weread2notion/assets/3365208/cab67cd3-42a6-4a4a-9280-539c956f3313)
+
+![WechatIMG53](https://github.com/malinkang/weread2notion/assets/3365208/75131b27-87e2-4d60-ac10-cfcfee6cfa29)
+
 
 
 ## 捐赠
