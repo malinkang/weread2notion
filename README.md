@@ -21,7 +21,8 @@
 > [!IMPORTANT]  
 > 欢迎加入微信群讨论。可以讨论使用中遇到的任何问题，也可以讨论Notion使用，后续我也会在群中分享更多Notion自动化工具。
 
-![WechatIMG53](https://github.com/malinkang/weread2notion/assets/3365208/75131b27-87e2-4d60-ac10-cfcfee6cfa29)
+
+![WechatIMG57](https://github.com/malinkang/weread2notion/assets/3365208/2e281f60-4094-4179-8449-0254470c9a29)
 
 
 
