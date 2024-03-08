@@ -8,9 +8,6 @@
 > [!WARNING]  
 > 请不要在Page里面添加自己的笔记，有新的笔记的时候会删除原笔记重新添加。
 
-我还开发了一个多邻国同步到Notion的项目，预览效果：https://duolingo.malinkang.com/
-
-感兴趣可以来购买: https://item.taobao.com/item.htm?_u=29sg85ld059&id=770962681887&spm=a1z09.8149145.0.0.a39a2b58RAfnBk
 
 ## 使用
 
@@ -25,7 +22,7 @@
 > 欢迎加入微信群讨论。可以讨论使用中遇到的任何问题，也可以讨论Notion使用，后续我也会在群中分享更多Notion自动化工具。
 
 
-![WechatIMG57](https://github.com/malinkang/weread2notion/assets/3365208/2e281f60-4094-4179-8449-0254470c9a29)
+![WechatIMG75](https://github.com/malinkang/weread2notion/assets/3365208/54cf7771-d5bd-436a-9bf7-4b074e45806b)
 
 
 
