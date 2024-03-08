@@ -417,10 +417,10 @@ if __name__ == "__main__":
                 title=title,
                 author=author,
                 chapter=chapter,
-                summary=summary,
                 bookmark_list=bookmark_list,
-                source_url=get_url(f"https://weread.qq.com/web/reader/{calculate_book_str_id(bookId)}"),
+                source_url=f"https://weread.qq.com/web/reader/{calculate_book_str_id(bookId)}",
                 cover=cover,
             )
-            print(rw_highlights[0])
-            readwise_client.create_highlights(rw_highlights)
+            if rw_highlights:
+                print(rw_highlights[0])
+                readwise_client.create_highlights(rw_highlights)

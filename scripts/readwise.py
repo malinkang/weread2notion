@@ -107,50 +107,71 @@ class Readwise:
         title,
         author,
         chapter,
-        summary,
         bookmark_list,
         source_url,
         cover,
-    ):
+    ):  
         highlights = []
         if author == "公众号":
             cat = Category.articles.name
         else:
             cat = Category.books.name
-        for data in bookmark_list:
-            markText = data.get("markText")
-            createTime = float(data.get("createTime"))
-            # convert unixtime to UTC format Example: "2020-07-14T20:11:24+00:00"
-            createTime = datetime.utcfromtimestamp(createTime).strftime(
-                '%Y-%m-%dT%H:%M:%S+00:00')
-            location = 0 if (data.get("range", "") == "" or
-                             data.get("range").split("-")[0] == "") else int(
-                                 data.get("range").split("-")[0])
-            highlights.append(
-                ReadwiseHighlight(
-                    text=markText,
-                    title=title,
-                    author=author,
-                    category=cat,
-                    highlighted_at=createTime,
-                    source_url=source_url,
-                    image_url=cover,
-                    location=location,
-                    location_type="order",
-                ))
+        if chapter != None:
+            # 添加目录
+            d = {}
+            for data in bookmark_list:
+                chapterUid = data.get("chapterUid", 1)
+                if chapterUid not in d:
+                    d[chapterUid] = []
+                d[chapterUid].append(data)
+            for key, value in d.items():
+                ch = chapter.get(key)
+                chapter_title=ch.get("title") if ch else ""
+                for data in value:
+                    createTime = float(data.get("createTime"))
+                    # convert unixtime to UTC format Example: "2020-07-14T20:11:24+00:00"
+                    createTime = datetime.utcfromtimestamp(createTime).strftime(
+                        '%Y-%m-%dT%H:%M:%S+00:00')
+                    location = 0 if (data.get("range", "") == "" or
+                                    data.get("range").split("-")[0] == "") else int(
+                                        data.get("range").split("-")[0])
+                    markText = chapter_title + '\n\n' + data.get("markText")
+                    abstract = data.get("abstract")
+                    if abstract and isinstance(abstract, str):
+                        markText = markText + "\n" + abstract
+                    highlights.append(
+                        ReadwiseHighlight(
+                            text=markText,
+                            title=title,
+                            author=author,
+                            category=cat,
+                            highlighted_at=createTime,
+                            source_url=source_url,
+                            image_url=cover,
+                            location=location,
+                            location_type="order",
+                    ))
 
-        if summary != None and len(summary) > 0:
-            for i in summary:
-                content = i.get("review").get("reviewId")
+        else:
+            for data in bookmark_list:
+                markText = data.get("markText")
+                createTime = float(data.get("createTime"))
+                # convert unixtime to UTC format Example: "2020-07-14T20:11:24+00:00"
+                createTime = datetime.utcfromtimestamp(createTime).strftime(
+                    '%Y-%m-%dT%H:%M:%S+00:00')
+                location = 0 if (data.get("range", "") == "" or
+                                data.get("range").split("-")[0] == "") else int(
+                                    data.get("range").split("-")[0])
                 highlights.append(
                     ReadwiseHighlight(
-                        text="点评\n" + content,
+                        text=markText,
                         title=title,
                         author=author,
                         category=cat,
                         highlighted_at=createTime,
                         source_url=source_url,
                         image_url=cover,
-                        location=0,
+                        location=location,
+                        location_type="order",
                     ))
         return [h.get_nonempty_params() for h in highlights]
