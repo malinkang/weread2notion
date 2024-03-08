@@ -6,11 +6,6 @@ from typing import Callable, Dict, List, Optional, Union
 
 import requests
 
-from zotero2readwise import FAILED_ITEMS_DIR
-from zotero2readwise.exception import Zotero2ReadwiseError
-from zotero2readwise.helper import sanitize_tag
-from zotero2readwise.zotero import ZoteroItem
-
 
 @dataclass
 class ReadwiseAPI:
@@ -150,79 +145,3 @@ class Readwise:
                         location=0,
                     ))
         return [h.get_nonempty_params() for h in highlights]
-
-    def convert_zotero_annotation_to_readwise_highlight(
-            self, annot: ZoteroItem) -> ReadwiseHighlight:
-
-        highlight_note = self.format_readwise_note(tags=annot.tags,
-                                                   comment=annot.comment)
-        if annot.page_label and annot.page_label.isnumeric():
-            location = int(annot.page_label)
-        else:
-            location = 0
-        highlight_url = None
-        if annot.attachment_url is not None:
-            attachment_id = annot.attachment_url.split("/")[-1]
-            annot_id = annot.annotation_url.split("/")[-1]
-            highlight_url = f'zotero://open-pdf/library/items/{attachment_id}?page={location}%&annotation={annot_id}'
-        return ReadwiseHighlight(
-            text=annot.text,
-            title=annot.title,
-            note=highlight_note,
-            author=annot.creators,
-            category=Category.articles.name
-            if annot.document_type != "book" else Category.books.name,
-            highlighted_at=annot.annotated_at,
-            source_url=annot.source_url,
-            highlight_url=annot.annotation_url
-            if highlight_url is None else highlight_url,
-            location=location,
-        )
-
-    def post_zotero_annotations_to_readwise(
-            self, zotero_annotations: List[ZoteroItem]) -> None:
-        print(
-            f"\nReadwise: Push {len(zotero_annotations)} Zotero annotations/notes to Readwise...\n"
-            f"It may take some time depending on the number of highlights...\n"
-            f"A complete message will show up once it's done!\n")
-        rw_highlights = []
-        for annot in zotero_annotations:
-            try:
-                if len(annot.text) >= 8191:
-                    print(
-                        f"A Zotero annotation from an item with {annot.title} (item_key={annot.key} and "
-                        f"version={annot.version}) cannot be uploaded since the highlight/note is very long. "
-                        f"A Readwise highlight can be up to 8191 characters.")
-                    self.failed_highlights.append(annot.get_nonempty_params())
-                    continue  # Go to next annot
-                rw_highlight = self.convert_zotero_annotation_to_readwise_highlight(
-                    annot)
-            except:
-                self.failed_highlights.append(annot.get_nonempty_params())
-                continue  # Go to next annot
-            rw_highlights.append(rw_highlight.get_nonempty_params())
-        self.create_highlights(rw_highlights)
-
-        finished_msg = ""
-        if self.failed_highlights:
-            finished_msg = (
-                f"\nNOTE: {len(self.failed_highlights)} highlights (out of {len(self.failed_highlights)}) failed "
-                f"to upload to Readwise.\n")
-
-        finished_msg += f"\n{len(rw_highlights)} highlights were successfully uploaded to Readwise.\n\n"
-        print(finished_msg)
-
-    def save_failed_items_to_json(self, json_filepath_failed_items: str = ''):
-        FAILED_ITEMS_DIR.mkdir(parents=True, exist_ok=True)
-        if json_filepath_failed_items:
-            out_filepath = FAILED_ITEMS_DIR.joinpath(
-                json_filepath_failed_items)
-        else:
-            out_filepath = FAILED_ITEMS_DIR.joinpath(
-                "failed_readwise_items.json")
-
-        with open(out_filepath, "w") as f:
-            dump(self.failed_highlights, f)
-        print(
-            f"{len(self.failed_highlights)} highlights failed to format (hence failed to upload to Readwise).\n"
-            f"Detail of failed items are saved into {out_filepath}")
