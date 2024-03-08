@@ -10,7 +10,7 @@ from requests.utils import cookiejar_from_dict
 from http.cookies import SimpleCookie
 from datetime import datetime
 import hashlib
-
+from readwise import Readwise
 from utils import get_callout, get_date, get_file, get_heading, get_icon, get_multi_select, get_number, get_quote, get_rich_text, get_select, get_table_of_contents, get_title, get_url
 
 WEREAD_URL = "https://weread.qq.com/"
@@ -348,6 +348,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("weread_cookie")
     parser.add_argument("notion_token")
+    parser.add_argument("readwise_token")
     parser.add_argument("database_id")
     parser.add_argument("ref")
     parser.add_argument("repository")
@@ -368,6 +369,7 @@ if __name__ == "__main__":
     session.get(WEREAD_URL)
     latest_sort = get_sort()
     books = get_notebooklist()
+    readwise_client = Readwise(options.readwise_token)
     if books != None:
         for index, book in enumerate(books):
             sort = book["sort"]
@@ -411,3 +413,13 @@ if __name__ == "__main__":
             results = add_children(id, children)
             if len(grandchild) > 0 and results != None:
                 add_grandchild(grandchild, results)
+            rw_highlights = readwise_client.convert_weread_hilights_to_readwise(
+                title=title,
+                author=author,
+                chapter=chapter,
+                summary=summary,
+                bookmark_list=bookmark_list,
+                source_url=get_url(f"https://weread.qq.com/web/reader/{calculate_book_str_id(bookId)}"),
+                cover=cover,
+            )
+            readwise_client.create_highlights(rw_highlights)
