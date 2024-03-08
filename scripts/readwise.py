@@ -7,6 +7,14 @@ from typing import Callable, Dict, List, Optional, Union
 import requests
 
 
+class Weread2ReadwiseError(Exception):
+
+    def __init__(self, message: str):
+        self.message = message
+
+        super().__init__(self.message)
+
+
 @dataclass
 class ReadwiseAPI:
     """Dataclass for ReadWise API endpoints"""
@@ -56,6 +64,7 @@ class Readwise:
         self.failed_highlights: List = []
 
     def create_highlights(self, highlights: List[Dict]) -> None:
+
         resp = requests.post(
             url=self.endpoints.highlights,
             headers=self._header,
@@ -67,7 +76,7 @@ class Readwise:
             )
             with open(error_log_file, "w") as f:
                 dump(resp.json(), f)
-            raise Zotero2ReadwiseError(
+            raise Weread2ReadwiseError(
                 f"Uploading to Readwise failed with following details:\n"
                 f"POST request Status Code={resp.status_code} ({resp.reason})\n"
                 f"Error log is saved to {error_log_file} file.")
