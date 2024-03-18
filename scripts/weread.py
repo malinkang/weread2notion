@@ -370,16 +370,16 @@ if __name__ == "__main__":
     parser.add_argument("repository")
     parser.add_argument("--styles", nargs="+", type=int, help="划线样式")
     parser.add_argument("--colors", nargs="+", type=int, help="划线颜色")
-    parser.add_argument("cc_url")
-    parser.add_argument("cc_id")
-    parser.add_argument("cc_secret")
+    parser.add_argument("--cc_url", nargs="+", type=str, help="CookieCloud url")
+    parser.add_argument("--cc_id", nargs="+", type=str, help="CookieCloud id")
+    parser.add_argument("--cc_secret", nargs="+", type=str, help="CookieCloud secret")
     options = parser.parse_args()
     weread_cookie = options.weread_cookie
     database_id = options.database_id
     notion_token = options.notion_token
     # 如果 cc 相关的配置全部不为空，则启用 cc，重新获取 weread_cookie
     if options.cc_url and options.cc_id and options.cc_secret:
-        cc_cookie = try_get_cloud_cookie(options.cc_url, options.cc_id, options.cc_secret)
+        cc_cookie = try_get_cloud_cookie(options.cc_url[0], options.cc_id[0], options.cc_secret[0])
         if cc_cookie != "":
             weread_cookie = cc_cookie
 
