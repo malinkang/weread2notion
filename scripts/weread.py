@@ -345,6 +345,8 @@ def download_image(url, save_dir="cover"):
 
 
 def try_get_cloud_cookie(cc_url, cc_id, cc_secret):
+    if cc_url == "" or cc_id == "" or cc_secret == "":
+        return ""
     req_url = cc_url + "/get/" + cc_id
     result = ""
     data = {"password": cc_secret}
@@ -381,7 +383,10 @@ if __name__ == "__main__":
     if options.cc_url and options.cc_id and options.cc_secret:
         cc_cookie = try_get_cloud_cookie(options.cc_url[0], options.cc_id[0], options.cc_secret[0])
         if cc_cookie != "":
+            print("use cloud cookie")
             weread_cookie = cc_cookie
+        else:
+            print("use local cookie")
 
     ref = options.ref
     branch = ref.split("/")[-1]
