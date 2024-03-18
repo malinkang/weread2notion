@@ -358,7 +358,6 @@ def try_get_cloud_cookie(cc_url, cc_id, cc_secret):
             cookies = cookie_data["weread.qq.com"]
             cookie_str = "; ".join([f"{cookie['name']}={cookie['value']}" for cookie in cookies])
             result = cookie_str
-    print("get cloud cookie result: ", result)
     return result
 
 
