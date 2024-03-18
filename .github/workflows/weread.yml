@@ -24,7 +24,7 @@ jobs:
           pip install -r requirements.txt
       - name: weread sync
         run: |
-          python scripts/weread.py "${{secrets.WEREAD_COOKIE}}" "${{secrets.NOTION_TOKEN}}" "${{secrets.NOTION_DATABASE_ID}}" "${{ github.ref }}" "${{ github.repository }}" --styles 0 1 2 --colors 0 1 2 3 4 5 --cc_url "${{ github.CC_URL }}" --cc_id "${{ github.CC_ID }}" --cc_secret "${{ github.CC_PASSWORD }}"
+          python scripts/weread.py "${{secrets.WEREAD_COOKIE}}" "${{secrets.NOTION_TOKEN}}" "${{secrets.NOTION_DATABASE_ID}}" "${{ github.ref }}" "${{ github.repository }}" --styles 0 1 2 --colors 0 1 2 3 4 5 --cc_url "${{ secrets.CC_URL }}" --cc_id "${{ secrets.CC_ID }}" --cc_secret "${{ secrets.CC_PASSWORD }}"
       - name: Set default year if not provided
         run: echo "YEAR=$(date +"%Y")" >> $GITHUB_ENV
         if: env.YEAR == ''
