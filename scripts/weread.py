@@ -344,6 +344,24 @@ def download_image(url, save_dir="cover"):
     return save_path
 
 
+def try_get_cloud_cookie(cc_url, cc_id, cc_secret):
+    if cc_url == "" or cc_id == "" or cc_secret == "":
+        return ""
+    req_url = cc_url + "/get/" + cc_id
+    result = ""
+    data = {"password": cc_secret}
+    response = requests.post(req_url, data=data)
+    if response.status_code == 200:
+        data = response.json()
+        cookie_data = data.get("cookie_data")
+        if cookie_data and "weread.qq.com" in cookie_data:
+            cookies = cookie_data["weread.qq.com"]
+            cookie_str = "; ".join([f"{cookie['name']}={cookie['value']}" for cookie in cookies])
+            result = cookie_str
+    return result
+
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("weread_cookie")
@@ -353,10 +371,22 @@ if __name__ == "__main__":
     parser.add_argument("repository")
     parser.add_argument("--styles", nargs="+", type=int, help="划线样式")
     parser.add_argument("--colors", nargs="+", type=int, help="划线颜色")
+    parser.add_argument("--cc_url", nargs="+", type=str, help="CookieCloud url")
+    parser.add_argument("--cc_id", nargs="+", type=str, help="CookieCloud id")
+    parser.add_argument("--cc_secret", nargs="+", type=str, help="CookieCloud secret")
     options = parser.parse_args()
     weread_cookie = options.weread_cookie
     database_id = options.database_id
     notion_token = options.notion_token
+    # 如果 cc 相关的配置全部不为空，则启用 cc，重新获取 weread_cookie
+    if options.cc_url and options.cc_id and options.cc_secret:
+        cc_cookie = try_get_cloud_cookie(options.cc_url[0], options.cc_id[0], options.cc_secret[0])
+        if cc_cookie != "":
+            print("use cloud cookie")
+            weread_cookie = cc_cookie
+        else:
+            print("use local cookie")
+
     ref = options.ref
     branch = ref.split("/")[-1]
     repository = options.repository
