@@ -399,19 +399,10 @@ def extract_page_id():
     else:
         raise Exception(f"获取NotionID失败，请检查输入的Url是否正确")
 
-
-
-def write_cookie_id(cookie):
-    env_file = os.getenv('GITHUB_ENV')
-    # 将值写入环境文件
-    with open(env_file, "a") as file:
-        file.write(f"WEREAD_COOKIE={cookie}\n")
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     options = parser.parse_args()
     weread_cookie = get_cookie()
-    write_cookie_id(weread_cookie)
     database_id = extract_page_id()
     notion_token = os.getenv("NOTION_TOKEN")
     session = requests.Session()
