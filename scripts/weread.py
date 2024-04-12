@@ -162,10 +162,9 @@ def insert_to_notion(bookName, bookId, cover, sort, author, isbn, rating, catego
                 )
             )
 
-    if cover.startswith("http"):
-        icon = get_icon(cover)
+    icon = get_icon(cover)
     # notion api 限制100个block
-    response = client.pages.create(parent=parent, icon=icon, properties=properties)
+    response = client.pages.create(parent=parent, icon=icon,cover=icon, properties=properties)
     id = response["id"]
     return id
 
@@ -418,12 +417,13 @@ if __name__ == "__main__":
                 continue
             book = book.get("book")
             title = book.get("title")
-            cover = book.get("cover")
-            if book.get("author") == "公众号" and book.get("cover").endswith("/0"):
-                cover += ".jpg"
-            if cover.startswith("http") and not cover.endswith(".jpg"):
-                path = download_image(cover)
-                cover = f"https://raw.githubusercontent.com/{os.getenv('REPOSITORY')}/{os.getenv('REF').split('/')[-1]}/{path}"
+            cover = book.get("cover").replace("/s_", "/t7_")
+            # print(cover)
+            # if book.get("author") == "公众号" and book.get("cover").endswith("/0"):
+            #     cover += ".jpg"
+            # if cover.startswith("http") and not cover.endswith(".jpg"):
+            #     path = download_image(cover)
+            #     cover = f"https://raw.githubusercontent.com/{os.getenv('REPOSITORY')}/{os.getenv('REF').split('/')[-1]}/{path}"
             bookId = book.get("bookId")
             author = book.get("author")
             categories = book.get("categories")
