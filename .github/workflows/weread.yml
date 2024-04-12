@@ -16,8 +16,6 @@ jobs:
       CC_URL: ${{ secrets.CC_URL }}
       CC_ID: ${{ secrets.CC_ID }}
       CC_PASSWORD: ${{ secrets.CC_PASSWORD }}
-      REF: ${{ github.ref }}
-      REPOSITORY: ${{ github.repository }}
       YEAR: ${{ vars.YEAR }}
     steps:
       - name: Checkout
