@@ -5,30 +5,40 @@
 
 预览效果：https://book.malinkang.com
 
+> [!WARNING]  
+> 请不要在Page里面添加自己的笔记，有新的笔记的时候会删除原笔记重新添加。
 
-注意：请不要在Page里面添加自己的笔记，有新的笔记的时候会删除原笔记重新添加。
 
 ## 使用
 
-1. star本项目
-2. fork这个工程
-3. 获取微信读书的Cookie
-    * 浏览器打开 https://weread.qq.com/
-    * 微信扫码登录确认，提示没有权限忽略即可
-    * 按F12进入开发者模式，依次点 Network -> Doc -> Headers-> cookie。复制 Cookie 字符串;
-4. 获取NotionToken
-    * 浏览器打开https://www.notion.so/my-integrations
-    * 点击New integration 输入name提交
-    * 点击show，然后copy
-5. 复制[这个Notion模板](https://malinkang.notion.site/a7794117392d4625ace722f78742afca?v=0a9551b0702649fa9913ff4f3758ace0)，删掉所有的数据，并点击右上角设置，Connections添加你创建的Integration。
+> [!IMPORTANT]  
+> 关注公众号获取教程，后续有更新也会第一时间在公众号里同步。
 
-6. 获取NotionDatabaseID
-    * 打开Notion数据库，点击右上角的Share，然后点击Copy link
-    * 获取链接后比如 https://www.notion.so/malinkang/1b78f0fd0d03484caa00154285ffec0c?v=7ed7e3fbe69043a28d2847e76f075d99&pvs=4 中间的1b78f0fd0d03484caa00154285ffec0c就是DatabaseID
-7. 在Github的Secrets中添加以下变量
-    * 打开你fork的工程，点击Settings->Secrets and variables->New repository secret
-    * 添加以下变量
-        * WEREAD_COOKIE
-        * NOTION_TOKEN
-        * NOTION_DATABASE_ID
+![扫码_搜索联合传播样式-标准色版](https://github.com/malinkang/weread2notion/assets/3365208/191900c6-958e-4f9b-908d-a40a54889b5e)
+
+
+## 群
+> [!IMPORTANT]  
+> 欢迎加入群讨论。可以讨论使用中遇到的任何问题，也可以讨论Notion使用，后续我也会在群中分享更多Notion自动化工具。微信群失效的话可以添加我的微信malinkang，我拉你入群。
+![WechatIMG81]()
+
+| 微信群 | QQ群 |
+| --- | --- |
+| <div align="center"><img src="https://github.com/malinkang/weread2notion/assets/3365208/f9231a4b-1ebf-4321-ab32-1473092c571a" ></div> | <div align="center"><img src="https://images.malinkang.com/2024/04/b225b17d60670e4a6ff3459bbde80d28.jpg" width="50%"></div> |
+
+
+## 捐赠
+
+如果你觉得本项目帮助了你，请作者喝一杯咖啡，你的支持是作者最大的动力。本项目会持续更新。
+
+| 支付宝支付 | 微信支付 |
+| --- | --- |
+| <div align="center"><img src="https://images.malinkang.com/2024/03/7fd0feb1145f19fab3821ff1d4631f85.jpg" width="50%"></div> | <div align="center"><img src="https://images.malinkang.com/2024/03/d34f577490a32d4440c8a22f57af41da.jpg" width="50%"></div> |
+
+## 其他项目
+* [WeRead2Notion-Pro](https://github.com/malinkang/weread2notion-pro)
+* [WeRead2Notion](https://github.com/malinkang/weread2notion)
+* [Podcast2Notion](https://github.com/malinkang/podcast2notion)
+* [Douban2Notion](https://github.com/malinkang/douban2notion)
+* [Keep2Notion](https://github.com/malinkang/keep2notion)
 
