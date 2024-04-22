@@ -20,11 +20,10 @@
 ## 群
 > [!IMPORTANT]  
 > 欢迎加入群讨论。可以讨论使用中遇到的任何问题，也可以讨论Notion使用，后续我也会在群中分享更多Notion自动化工具。微信群失效的话可以添加我的微信malinkang，我拉你入群。
-![WechatIMG81]()
 
 | 微信群 | QQ群 |
 | --- | --- |
-| <div align="center"><img src="https://github.com/malinkang/weread2notion/assets/3365208/f9231a4b-1ebf-4321-ab32-1473092c571a" ></div> | <div align="center"><img src="https://images.malinkang.com/2024/04/b225b17d60670e4a6ff3459bbde80d28.jpg" width="50%"></div> |
+| <div align="center"><img src="https://github.com/sasa81819/weread2notion/assets/3365208/201baf49-ad78-4089-990e-39c41a323910" ></div> | <div align="center"><img src="https://images.malinkang.com/2024/04/b225b17d60670e4a6ff3459bbde80d28.jpg" width="50%"></div> |
 
 
 ## 捐赠
