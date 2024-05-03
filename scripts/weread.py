@@ -79,7 +79,8 @@ def get_bookinfo(bookId):
         data = r.json()
         isbn = data["isbn"]
         newRating = data["newRating"] / 1000
-        return (isbn, newRating)
+        totalWords = data["totalWords"] / 10000
+        return (isbn, newRating, totalWords)
     else:
         print(f"get {bookId} book info failed")
         return ("", 0)
@@ -134,7 +135,7 @@ def insert_to_notion(bookName, bookId, cover, sort, author, isbn, rating, catego
             f"https://weread.qq.com/web/reader/{calculate_book_str_id(bookId)}"
         ),
         "Author": get_rich_text(author),
-        "Sort": get_number(sort),
+        # "Sort": get_number(sort), # 测试不要这个字段，notion会发生什么变化
         "Rating": get_number(rating),
         "Cover": get_file(cover),
     }
@@ -431,7 +432,7 @@ if __name__ == "__main__":
                 categories = [x["title"] for x in categories]
             print(f"正在同步 {title} ,一共{len(books)}本，当前是第{index+1}本。")
             check(bookId)
-            isbn, rating = get_bookinfo(bookId)
+            isbn, rating, totalWords = get_bookinfo(bookId)
             id = insert_to_notion(
                 title, bookId, cover, sort, author, isbn, rating, categories
             )
