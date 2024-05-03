@@ -79,7 +79,7 @@ def get_bookinfo(bookId):
         data = r.json()
         isbn = data["isbn"]
         newRating = data["newRating"] / 1000
-        totalWords = data["totalWords"] / 10000
+        totalWords = data["totalWords"]
         return (isbn, newRating, totalWords)
     else:
         print(f"get {bookId} book info failed")
