@@ -123,7 +123,7 @@ def get_chapter_info(bookId):
     return None
 
 
-def insert_to_notion(bookName, bookId, cover, sort, author, isbn, rating, categories):
+def insert_to_notion(bookName, bookId, cover, sort, author, isbn, rating, categories, words):
     """插入到notion"""
     time.sleep(0.3)
     parent = {"database_id": database_id, "type": "database_id"}
@@ -136,6 +136,7 @@ def insert_to_notion(bookName, bookId, cover, sort, author, isbn, rating, catego
         ),
         "Author": get_rich_text(author),
         # "Sort": get_number(sort), # 测试不要这个字段，notion会发生什么变化
+        "Words": get_number(words),
         "Rating": get_number(rating),
         "Cover": get_file(cover),
     }
@@ -432,9 +433,9 @@ if __name__ == "__main__":
                 categories = [x["title"] for x in categories]
             print(f"正在同步 {title} ,一共{len(books)}本，当前是第{index+1}本。")
             check(bookId)
-            isbn, rating, totalWords = get_bookinfo(bookId)
+            isbn, rating, words = get_bookinfo(bookId)
             id = insert_to_notion(
-                title, bookId, cover, sort, author, isbn, rating, categories
+                title, bookId, cover, sort, author, isbn, rating, categories, words
             )
             chapter = get_chapter_info(bookId)
             bookmark_list = get_bookmark_list(bookId)
