@@ -125,6 +125,8 @@ def get_chapter_info(bookId):
 def insert_to_notion(bookName, bookId, cover, sort, author, isbn, rating, categories):
     """插入到notion"""
     time.sleep(0.3)
+    if not cover or not cover.startswith("http"):
+        cover = "https://www.notion.so/icons/book_gray.svg"
     parent = {"database_id": database_id, "type": "database_id"}
     properties = {
         "BookName": get_title(bookName),
