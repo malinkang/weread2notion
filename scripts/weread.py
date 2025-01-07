@@ -104,7 +104,10 @@ def check(bookId):
     response = client.databases.query(database_id=database_id, filter=filter)
     for result in response["results"]:
         time.sleep(0.3)
-        client.blocks.delete(block_id=result["id"])
+        try:
+            client.blocks.delete(block_id=result["id"])
+        except Exception as e:
+            print(f"删除块时出错: {e}")
 
 
 def get_chapter_info(bookId):
