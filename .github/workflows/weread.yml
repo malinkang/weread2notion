@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "0 0 * * *"
+
 jobs:
   sync:
     name: Sync
@@ -17,26 +18,51 @@ jobs:
       CC_ID: ${{ secrets.CC_ID }}
       CC_PASSWORD: ${{ secrets.CC_PASSWORD }}
       YEAR: ${{ vars.YEAR }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: 3.9
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+
       - name: weread sync
         run: |
           python scripts/weread.py
+
       - name: Set default year if not provided
-        run: echo "YEAR=$(date +"%Y")" >> $GITHUB_ENV
         if: env.YEAR == ''
+        run: echo "YEAR=$(date +"%Y")" >> $GITHUB_ENV
+
+      # ------------------------
+      # 1. 在这里插入新 step，写 WEREAD
+      # ------------------------
+      - name: Prepare WEREAD for github_heatmap
+        run: echo 'WEREAD={"cookie":"${{ secrets.WEREAD_COOKIE }}"}' >> $GITHUB_ENV
+      #
+      # 这一步就是关键：github_heatmap 的 weread_loader.py 默认读的是
+      #   os.getenv("WEREAD")
+      # 而不是 WEREAD_COOKIE。如果不写这个 step，它会报 JSON 解析 NoneType 的错误。
+
       - name: weread heatmap
         run: |
-          github_heatmap weread --year $YEAR  --me "${{secrets.NAME}}" --with-animation --background-color=${{ vars.background_color||'#FFFFFF'}} --track-color=${{ vars.track_color||'#ACE7AE'}} --special-color1=${{ vars.special_color||'#69C16E'}} --special-color2=${{ vars.special_color2||'#549F57'}} --dom-color=${{ vars.dom_color||'#EBEDF0'}} --text-color=${{ vars.text_color||'#000000'}}
+          github_heatmap weread --year $YEAR \
+            --me "${{secrets.NAME}}" \
+            --with-animation \
+            --background-color=${{ vars.background_color || '#FFFFFF'}} \
+            --track-color=${{ vars.track_color || '#ACE7AE'}} \
+            --special-color1=${{ vars.special_color || '#69C16E'}} \
+            --special-color2=${{ vars.special_color2 || '#549F57'}} \
+            --dom-color=${{ vars.dom_color || '#EBEDF0'}} \
+            --text-color=${{ vars.text_color || '#000000'}}
+
       - name: push
         run: |
           git config --local user.email "action@github.com"
