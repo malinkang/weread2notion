@@ -31,10 +31,6 @@ jobs:
       - name: weread sync
         run: |
           python scripts/weread.py
-      - name: 写入secrets.txt
-        run: |
-          echo "NOTION_TOKEN=${NOTION_TOKEN}" > secrets.txt
-          echo "NOTION_PAGE=${NOTION_PAGE}" >> secrets.txt
       - name: push
         run: |
           git config --local user.email "action@github.com"
