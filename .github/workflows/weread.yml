@@ -31,12 +31,10 @@ jobs:
       - name: weread sync
         run: |
           python scripts/weread.py
-      - name: Set default year if not provided
-        run: echo "YEAR=$(date +"%Y")" >> $GITHUB_ENV
-        if: env.YEAR == ''
-      - name: weread heatmap
+      - name: 写入secrets.txt
         run: |
-          github_heatmap weread --year $YEAR  --me "${{secrets.NAME}}" --with-animation --background-color=${{ vars.background_color||'#FFFFFF'}} --track-color=${{ vars.track_color||'#ACE7AE'}} --special-color1=${{ vars.special_color||'#69C16E'}} --special-color2=${{ vars.special_color2||'#549F57'}} --dom-color=${{ vars.dom_color||'#EBEDF0'}} --text-color=${{ vars.text_color||'#000000'}}
+          echo "NOTION_TOKEN=${NOTION_TOKEN}" > secrets.txt
+          echo "NOTION_PAGE=${NOTION_PAGE}" >> secrets.txt
       - name: push
         run: |
           git config --local user.email "action@github.com"

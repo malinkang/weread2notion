@@ -1,4 +1,3 @@
 requests
 notion-client
-github-heatmap
 python-dotenv
