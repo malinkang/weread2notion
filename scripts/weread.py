@@ -50,9 +50,9 @@ def parse_cookie_string(cookie_string):
 
 def get_bookmark_list(bookId):
     """获取我的划线"""
+    session.get(WEREAD_URL)
     params = dict(bookId=bookId)
     r = session.get(WEREAD_BOOKMARKLIST_URL, params=params)
-    print(r.json())
     if r.ok:
         updated = r.json().get("updated")
         updated = sorted(
@@ -64,6 +64,7 @@ def get_bookmark_list(bookId):
 
 
 def get_read_info(bookId):
+    session.get(WEREAD_URL)
     params = dict(bookId=bookId, readingDetail=1, readingBookIndex=1, finishedDate=1)
     r = session.get(WEREAD_READ_INFO_URL, params=params)
     if r.ok:
@@ -73,6 +74,7 @@ def get_read_info(bookId):
 
 def get_bookinfo(bookId):
     """获取书的详情"""
+    session.get(WEREAD_URL)
     params = dict(bookId=bookId)
     r = session.get(WEREAD_BOOK_INFO, params=params)
     isbn = ""
@@ -88,6 +90,7 @@ def get_bookinfo(bookId):
 
 def get_review_list(bookId):
     """获取笔记"""
+    session.get(WEREAD_URL)
     params = dict(bookId=bookId, listType=11, mine=1, syncKey=0)
     r = session.get(WEREAD_REVIEW_LIST_URL, params=params)
     reviews = r.json().get("reviews")
@@ -100,11 +103,9 @@ def get_review_list(bookId):
 
 def check(bookId):
     """检查是否已经插入过 如果已经插入了就删除"""
-    time.sleep(0.3)
     filter = {"property": "BookId", "rich_text": {"equals": bookId}}
     response = client.databases.query(database_id=database_id, filter=filter)
     for result in response["results"]:
-        time.sleep(0.3)
         try:
             client.blocks.delete(block_id=result["id"])
         except Exception as e:
@@ -113,6 +114,7 @@ def check(bookId):
 
 def get_chapter_info(bookId):
     """获取章节信息"""
+    session.get(WEREAD_URL)
     body = {"bookIds": [bookId], "synckeys": [0], "teenmode": 0}
     r = session.post(WEREAD_CHAPTER_INFO, json=body)
     if (
@@ -128,7 +130,6 @@ def get_chapter_info(bookId):
 
 def insert_to_notion(bookName, bookId, cover, sort, author, isbn, rating, categories):
     """插入到notion"""
-    time.sleep(0.3)
     if not cover or not cover.startswith("http"):
         cover = "https://www.notion.so/icons/book_gray.svg"
     parent = {"database_id": database_id, "type": "database_id"}
@@ -195,6 +196,7 @@ def add_grandchild(grandchild, results):
 
 def get_notebooklist():
     """获取笔记本列表"""
+    session.get(WEREAD_URL)
     r = session.get(WEREAD_NOTEBOOKS_URL)
     if r.ok:
         data = r.json()
