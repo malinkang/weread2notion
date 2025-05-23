@@ -77,8 +77,8 @@ def get_bookinfo(bookId):
     isbn = ""
     if r.ok:
         data = r.json()
-        isbn = data["isbn"]
-        newRating = data["newRating"] / 1000
+        isbn = data.get("isbn")
+        newRating = data.get("newRating", 0) / 1000
         return (isbn, newRating)
     else:
         print(f"get {bookId} book info failed")
