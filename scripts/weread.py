@@ -12,8 +12,7 @@ from datetime import datetime
 import hashlib
 from dotenv import load_dotenv
 import os
-
-from urllib3 import Retry
+from retrying import retry
 from utils import (
     get_callout,
     get_date,
@@ -52,7 +51,7 @@ def parse_cookie_string(cookie_string):
 def refresh_token():
     session.get(WEREAD_URL)
 
-@Retry(stop_max_attempt_number=3, wait_fixed=5000,retry_on_exception=refresh_token)
+@retry(stop_max_attempt_number=3, wait_fixed=5000,retry_on_exception=refresh_token)
 def get_bookmark_list(bookId):
     """获取我的划线"""
     session.get(WEREAD_URL)
@@ -68,7 +67,7 @@ def get_bookmark_list(bookId):
         return r.json()["updated"]
     return None
 
-@Retry(stop_max_attempt_number=3, wait_fixed=5000,retry_on_exception=refresh_token)
+@retry(stop_max_attempt_number=3, wait_fixed=5000,retry_on_exception=refresh_token)
 def get_read_info(bookId):
     session.get(WEREAD_URL)
     params = dict(bookId=bookId, readingDetail=1, readingBookIndex=1, finishedDate=1)
@@ -77,7 +76,7 @@ def get_read_info(bookId):
         return r.json()
     return None
 
-@Retry(stop_max_attempt_number=3, wait_fixed=5000,retry_on_exception=refresh_token)
+@retry(stop_max_attempt_number=3, wait_fixed=5000,retry_on_exception=refresh_token)
 def get_bookinfo(bookId):
     """获取书的详情"""
     session.get(WEREAD_URL)
@@ -93,7 +92,7 @@ def get_bookinfo(bookId):
         print(f"get {bookId} book info failed")
         return ("", 0)
 
-@Retry(stop_max_attempt_number=3, wait_fixed=5000,retry_on_exception=refresh_token)
+@retry(stop_max_attempt_number=3, wait_fixed=5000,retry_on_exception=refresh_token)
 def get_review_list(bookId):
     """获取笔记"""
     session.get(WEREAD_URL)
@@ -117,7 +116,7 @@ def check(bookId):
         except Exception as e:
             print(f"删除块时出错: {e}")
 
-@Retry(stop_max_attempt_number=3, wait_fixed=5000,retry_on_exception=refresh_token)
+@retry(stop_max_attempt_number=3, wait_fixed=5000,retry_on_exception=refresh_token)
 def get_chapter_info(bookId):
     """获取章节信息"""
     session.get(WEREAD_URL)
@@ -354,8 +353,6 @@ def try_get_cloud_cookie(url, id, password):
             )
             result = cookie_str
     return result
-
-@Retry(stop_max_attempt_number=3, wait_fixed=5000,retry_on_exception=refresh_token)
 
 
 def get_cookie():
