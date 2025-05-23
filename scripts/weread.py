@@ -12,6 +12,8 @@ from datetime import datetime
 import hashlib
 from dotenv import load_dotenv
 import os
+
+from urllib3 import Retry
 from utils import (
     get_callout,
     get_date,
@@ -47,7 +49,10 @@ def parse_cookie_string(cookie_string):
         cookiejar = cookiejar_from_dict(cookies_dict, cookiejar=None, overwrite=True)
     return cookiejar
 
+def refresh_token():
+    session.get(WEREAD_URL)
 
+@Retry(stop_max_attempt_number=3, wait_fixed=5000,retry_on_exception=refresh_token)
 def get_bookmark_list(bookId):
     """获取我的划线"""
     session.get(WEREAD_URL)
@@ -63,7 +68,7 @@ def get_bookmark_list(bookId):
         return r.json()["updated"]
     return None
 
-
+@Retry(stop_max_attempt_number=3, wait_fixed=5000,retry_on_exception=refresh_token)
 def get_read_info(bookId):
     session.get(WEREAD_URL)
     params = dict(bookId=bookId, readingDetail=1, readingBookIndex=1, finishedDate=1)
@@ -72,7 +77,7 @@ def get_read_info(bookId):
         return r.json()
     return None
 
-
+@Retry(stop_max_attempt_number=3, wait_fixed=5000,retry_on_exception=refresh_token)
 def get_bookinfo(bookId):
     """获取书的详情"""
     session.get(WEREAD_URL)
@@ -88,7 +93,7 @@ def get_bookinfo(bookId):
         print(f"get {bookId} book info failed")
         return ("", 0)
 
-
+@Retry(stop_max_attempt_number=3, wait_fixed=5000,retry_on_exception=refresh_token)
 def get_review_list(bookId):
     """获取笔记"""
     session.get(WEREAD_URL)
@@ -112,7 +117,7 @@ def check(bookId):
         except Exception as e:
             print(f"删除块时出错: {e}")
 
-
+@Retry(stop_max_attempt_number=3, wait_fixed=5000,retry_on_exception=refresh_token)
 def get_chapter_info(bookId):
     """获取章节信息"""
     session.get(WEREAD_URL)
@@ -332,31 +337,6 @@ def calculate_book_str_id(book_id):
     return result
 
 
-def download_image(url, save_dir="cover"):
-    # 确保目录存在，如果不存在则创建
-    if not os.path.exists(save_dir):
-        os.makedirs(save_dir)
-
-    # 获取文件名，使用 URL 最后一个 '/' 之后的字符串
-    file_name = url.split("/")[-1] + ".jpg"
-    save_path = os.path.join(save_dir, file_name)
-
-    # 检查文件是否已经存在，如果存在则不进行下载
-    if os.path.exists(save_path):
-        print(f"File {file_name} already exists. Skipping download.")
-        return save_path
-
-    response = requests.get(url, stream=True)
-    if response.status_code == 200:
-        with open(save_path, "wb") as file:
-            for chunk in response.iter_content(chunk_size=128):
-                file.write(chunk)
-        print(f"Image downloaded successfully to {save_path}")
-    else:
-        print(f"Failed to download image. Status code: {response.status_code}")
-    return save_path
-
-
 def try_get_cloud_cookie(url, id, password):
     if url.endswith("/"):
         url = url[:-1]
@@ -374,6 +354,8 @@ def try_get_cloud_cookie(url, id, password):
             )
             result = cookie_str
     return result
+
+@Retry(stop_max_attempt_number=3, wait_fixed=5000,retry_on_exception=refresh_token)
 
 
 def get_cookie():
