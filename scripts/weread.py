@@ -359,12 +359,7 @@ def get_children(chapter, summary, bookmark_list):
                     continue
                 for j in range(0, len(markText) // 2000 + 1):
                     children.append(
-                        get_callout(
-                            markText[j * 2000 : (j + 1) * 2000],
-                            i.get("style"),
-                            i.get("colorStyle"),
-                            i.get("reviewId"),
-                        )
+                        get_callout(markText[j * 2000 : (j + 1) * 2000])
                     )
                 if i.get("abstract") != None and i.get("abstract") != "":
                     quote = get_quote(i.get("abstract"))
@@ -378,12 +373,7 @@ def get_children(chapter, summary, bookmark_list):
                 continue
             for i in range(0, len(markText) // 2000 + 1):
                 children.append(
-                    get_callout(
-                        markText[i * 2000 : (i + 1) * 2000],
-                        data.get("style"),
-                        data.get("colorStyle"),
-                        data.get("reviewId"),
-                    )
+                    get_callout(markText[i * 2000 : (i + 1) * 2000])
                 )
     if summary != None and len(summary) > 0:
         children.append(get_heading(1, "点评"))
@@ -393,12 +383,7 @@ def get_children(chapter, summary, bookmark_list):
                 continue
             for j in range(0, len(content) // 2000 + 1):
                 children.append(
-                    get_callout(
-                        content[j * 2000 : (j + 1) * 2000],
-                        i.get("style"),
-                        i.get("colorStyle"),
-                        (i.get("review") or {}).get("reviewId"),
-                    )
+                    get_callout(content[j * 2000 : (j + 1) * 2000])
                 )
     return children, grandchild
 
