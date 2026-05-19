@@ -20,7 +20,6 @@ from utils import (
     get_quote,
     get_rich_text,
     get_select,
-    get_table_of_contents,
     get_title,
     get_url,
 )
@@ -67,8 +66,17 @@ def get_range_start(item):
         return 0
 
 
-def get_note_sort_key(item):
-    return (item.get("chapterUid", 1), get_range_start(item))
+def get_note_sort_key(item, chapter=None):
+    chapter_uid = item.get("chapterUid", 1)
+    chapter_info = None
+    if chapter:
+        chapter_info = chapter.get(chapter_uid) or chapter.get(str(chapter_uid))
+    chapter_idx = (
+        chapter_info.get("chapterIdx", 1000000)
+        if chapter_info
+        else chapter_uid
+    )
+    return (chapter_idx, get_range_start(item))
 
 
 @retry(stop_max_attempt_number=3, wait_fixed=5000)
@@ -265,25 +273,90 @@ def get_sort():
 def get_children(chapter, summary, bookmark_list):
     children = []
     grandchild = {}
-    if chapter != None:
-        # 添加目录
-        children.append(get_table_of_contents())
-        d = {}
+    all_chapters = []
+    if chapter:
+        for uid, info in chapter.items():
+            item = dict(info)
+            item["chapterUid"] = item.get("chapterUid", uid)
+            all_chapters.append(item)
+        all_chapters.sort(key=lambda x: x.get("chapterIdx", 0))
+    chapter_nodes = {node.get("chapterUid"): node for node in all_chapters}
+
+    def get_ancestor_chain(current_chapter_info):
+        if not current_chapter_info:
+            return []
+        try:
+            current_pos = all_chapters.index(current_chapter_info)
+        except ValueError:
+            return [current_chapter_info]
+
+        chain = []
+        target_level = current_chapter_info.get("level", 1)
+        for index in range(current_pos - 1, -1, -1):
+            candidate = all_chapters[index]
+            if candidate.get("level", 1) < target_level:
+                chain.insert(0, candidate)
+                target_level = candidate.get("level", 1)
+                if target_level <= 1:
+                    break
+        chain.append(current_chapter_info)
+        return chain
+
+    if chapter:
+        grouped_bookmarks = []
+        last_uid = None
+        current_group = None
+
         for data in bookmark_list:
-            chapterUid = data.get("chapterUid", 1)
-            if chapterUid not in d:
-                d[chapterUid] = []
-            d[chapterUid].append(data)
-        for key, value in d.items():
-            if key in chapter:
-                # 添加章节
-                children.append(
-                    get_heading(
-                        chapter.get(key).get("level"), chapter.get(key).get("title")
-                    )
+            uid = data.get("chapterUid", 1)
+            if uid != last_uid:
+                if current_group:
+                    grouped_bookmarks.append(current_group)
+                info = chapter.get(uid) or chapter.get(str(uid))
+                current_group = {
+                    "chapterUid": uid,
+                    "bookmarks": [],
+                    "chapterInfo": info,
+                }
+                last_uid = uid
+            current_group["bookmarks"].append(data)
+        if current_group:
+            grouped_bookmarks.append(current_group)
+
+        previous_path_uids = []
+        for group in grouped_bookmarks:
+            info = group["chapterInfo"]
+            if info:
+                current_info = chapter_nodes.get(group["chapterUid"]) or chapter_nodes.get(
+                    str(group["chapterUid"])
                 )
-            for i in value:
+                if current_info is None:
+                    current_info = dict(info)
+                    current_info["chapterUid"] = current_info.get("chapterUid", group["chapterUid"])
+                path = get_ancestor_chain(current_info)
+
+                divergence_index = 0
+                min_len = min(len(path), len(previous_path_uids))
+                while divergence_index < min_len:
+                    path_uid = path[divergence_index].get("chapterUid")
+                    if path_uid != previous_path_uids[divergence_index]:
+                        break
+                    divergence_index += 1
+
+                for chapter_node in path[divergence_index:]:
+                    children.append(
+                        get_heading(
+                            chapter_node.get("level"), chapter_node.get("title")
+                        )
+                    )
+                previous_path_uids = [node.get("chapterUid") for node in path]
+            else:
+                previous_path_uids = []
+
+            for i in group["bookmarks"]:
                 markText = i.get("markText") or ""
+                if not markText:
+                    continue
                 for j in range(0, len(markText) // 2000 + 1):
                     children.append(
                         get_callout(
@@ -301,6 +374,8 @@ def get_children(chapter, summary, bookmark_list):
         # 如果没有章节信息
         for data in bookmark_list:
             markText = data.get("markText") or ""
+            if not markText:
+                continue
             for i in range(0, len(markText) // 2000 + 1):
                 children.append(
                     get_callout(
@@ -314,13 +389,15 @@ def get_children(chapter, summary, bookmark_list):
         children.append(get_heading(1, "点评"))
         for i in summary:
             content = (i.get("review") or {}).get("content") or ""
+            if not content:
+                continue
             for j in range(0, len(content) // 2000 + 1):
                 children.append(
                     get_callout(
                         content[j * 2000 : (j + 1) * 2000],
                         i.get("style"),
                         i.get("colorStyle"),
-                        i.get("review").get("reviewId"),
+                        (i.get("review") or {}).get("reviewId"),
                     )
                 )
     return children, grandchild
@@ -423,7 +500,7 @@ if __name__ == "__main__":
             bookmark_list.extend(reviews)
             bookmark_list = sorted(
                 bookmark_list,
-                key=get_note_sort_key,
+                key=lambda x: get_note_sort_key(x, chapter),
             )
             children, grandchild = get_children(chapter, summary, bookmark_list)
             results = add_children(id, children)
