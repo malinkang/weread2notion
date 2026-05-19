@@ -1,7 +1,8 @@
 # 将微信读书划线和笔记同步到Notion
 
 
-本项目通过Github Action每天定时同步微信读书划线到Notion。
+本项目通过 Github Action 每天定时同步微信读书划线到 Notion。
+当前版本使用微信读书 API Key（Gateway 新接口），不再使用 Cookie。
 
 预览效果：https://book.malinkang.com
 
@@ -13,6 +14,14 @@
 
 > [!IMPORTANT]  
 > 关注公众号获取教程
+
+在 GitHub 仓库的 `Settings -> Secrets and variables -> Actions -> Repository secrets` 中配置：
+
+| Secret | 说明 |
+| --- | --- |
+| `WEREAD_API_KEY` | 微信读书 API Key |
+| `NOTION_TOKEN` | Notion Integration Token |
+| `NOTION_PAGE` 或 `NOTION_DATABASE_ID` | 目标 Notion 数据库页面链接或数据库 ID |
 
 ![扫码_搜索联合传播样式-标准色版](https://github.com/malinkang/weread2notion/assets/3365208/191900c6-958e-4f9b-908d-a40a54889b5e)
 
@@ -34,5 +43,4 @@
 | 支付宝支付 | 微信支付 |
 | --- | --- |
 | <div align="center"><img src="https://images.malinkang.com/2024/03/7fd0feb1145f19fab3821ff1d4631f85.jpg" width="50%"></div> | <div align="center"><img src="https://images.malinkang.com/2024/03/d34f577490a32d4440c8a22f57af41da.jpg" width="50%"></div> |
-
 

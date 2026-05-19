@@ -1,17 +1,13 @@
 import argparse
-import json
 import logging
 import os
 import re
 import time
 from notion_client import Client
 import requests
-from requests.utils import cookiejar_from_dict
-from http.cookies import SimpleCookie
 from datetime import datetime
 import hashlib
 from dotenv import load_dotenv
-import os
 from retrying import retry
 from utils import (
     get_callout,
@@ -30,79 +26,116 @@ from utils import (
 )
 load_dotenv()
 WEREAD_URL = "https://weread.qq.com/"
-WEREAD_NOTEBOOKS_URL = "https://weread.qq.com/api/user/notebook"
-WEREAD_BOOKMARKLIST_URL = "https://weread.qq.com/web/book/bookmarklist"
-WEREAD_CHAPTER_INFO = "https://weread.qq.com/web/book/chapterInfos"
-WEREAD_READ_INFO_URL = "https://weread.qq.com/web/book/readinfo"
-WEREAD_REVIEW_LIST_URL = "https://weread.qq.com/web/review/list"
-WEREAD_BOOK_INFO = "https://weread.qq.com/web/book/info"
+WEREAD_GATEWAY_URL = "https://i.weread.qq.com/api/agent/gateway"
+WEREAD_SKILL_VERSION = "1.0.3"
 
 
-def parse_cookie_string(cookie_string):
-    cookie = SimpleCookie()
-    cookie.load(cookie_string)
-    cookies_dict = {}
-    cookiejar = None
-    for key, morsel in cookie.items():
-        cookies_dict[key] = morsel.value
-        cookiejar = cookiejar_from_dict(cookies_dict, cookiejar=None, overwrite=True)
-    return cookiejar
+class WeReadGatewayClient:
+    def __init__(self, api_key):
+        if not api_key or not api_key.strip():
+            raise Exception("没有找到 WEREAD_API_KEY，请在 GitHub Actions Secrets 中配置")
+        self.session = requests.Session()
+        self.session.headers.update(
+            {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            }
+        )
 
-def refresh_token(exception):
-    session.get(WEREAD_URL)
+    @retry(stop_max_attempt_number=3, wait_fixed=5000)
+    def request(self, api_name, **kwargs):
+        payload = {
+            "api_name": api_name,
+            "skill_version": WEREAD_SKILL_VERSION,
+            **kwargs,
+        }
+        response = self.session.post(WEREAD_GATEWAY_URL, json=payload, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+        if data.get("upgrade_info"):
+            raise Exception(f"微信读书 skill 需要升级: {data.get('upgrade_info')}")
+        if data.get("errcode", 0) != 0:
+            raise Exception(f"微信读书 Gateway 请求失败: {api_name}, errcode={data.get('errcode')}, response={data}")
+        return data
 
-@retry(stop_max_attempt_number=3, wait_fixed=5000,retry_on_exception=refresh_token)
+
+def get_range_start(item):
+    note_range = item.get("range") or ""
+    try:
+        return int(note_range.split("-")[0] or 0)
+    except (ValueError, TypeError):
+        return 0
+
+
+def get_note_sort_key(item):
+    return (item.get("chapterUid", 1), get_range_start(item))
+
+
+@retry(stop_max_attempt_number=3, wait_fixed=5000)
 def get_bookmark_list(bookId):
     """获取我的划线"""
-    session.get(WEREAD_URL)
-    params = dict(bookId=bookId)
-    r = session.get(WEREAD_BOOKMARKLIST_URL, params=params)
-    if r.ok:
-        print(r.json())
-        updated = r.json().get("updated")
-        updated = sorted(
-            updated,
-            key=lambda x: (x.get("chapterUid", 1), int(x.get("range").split("-")[0])),
-        )
-        return r.json()["updated"]
-    return None
+    data = weread.request("/book/bookmarklist", bookId=bookId)
+    updated = data.get("updated") or []
+    return sorted(updated, key=get_note_sort_key)
 
-@retry(stop_max_attempt_number=3, wait_fixed=5000,retry_on_exception=refresh_token)
+
+@retry(stop_max_attempt_number=3, wait_fixed=5000)
 def get_read_info(bookId):
-    session.get(WEREAD_URL)
-    params = dict(bookId=bookId, readingDetail=1, readingBookIndex=1, finishedDate=1)
-    r = session.get(WEREAD_READ_INFO_URL, params=params)
-    if r.ok:
-        return r.json()
-    return None
+    data = weread.request("/book/getprogress", bookId=bookId)
+    book = data.get("book") or {}
+    progress = book.get("progress") or 0
+    finish_time = book.get("finishTime") or 0
+    update_time = book.get("updateTime") or 0
+    if finish_time or progress >= 100:
+        marked_status = 4
+    elif update_time or book.get("isStartReading") or progress > 0:
+        marked_status = 2
+    else:
+        marked_status = 1
+    return {
+        "markedStatus": marked_status,
+        "readingTime": book.get("recordReadingTime") or 0,
+        "readingProgress": progress,
+        "finishedDate": finish_time,
+    }
 
-@retry(stop_max_attempt_number=3, wait_fixed=5000,retry_on_exception=refresh_token)
+
+def normalize_rating(value):
+    value = value or 0
+    if value > 100:
+        return value / 1000
+    if value > 10:
+        return value / 10
+    return value
+
+
+@retry(stop_max_attempt_number=3, wait_fixed=5000)
 def get_bookinfo(bookId):
     """获取书的详情"""
-    session.get(WEREAD_URL)
-    params = dict(bookId=bookId)
-    r = session.get(WEREAD_BOOK_INFO, params=params)
-    isbn = ""
-    if r.ok:
-        data = r.json()
-        isbn = data.get("isbn","")
-        newRating = data.get("newRating", 0) / 1000
-        return (isbn, newRating)
-    else:
-        print(f"get {bookId} book info failed")
-        return ("", 0)
+    data = weread.request("/book/info", bookId=bookId)
+    isbn = data.get("isbn", "")
+    newRating = normalize_rating(data.get("newRating"))
+    return (isbn, newRating)
 
-@retry(stop_max_attempt_number=3, wait_fixed=5000,retry_on_exception=refresh_token)
+
+@retry(stop_max_attempt_number=3, wait_fixed=5000)
 def get_review_list(bookId):
     """获取笔记"""
-    session.get(WEREAD_URL)
-    params = dict(bookId=bookId, listType=11, mine=1, syncKey=0)
-    r = session.get(WEREAD_REVIEW_LIST_URL, params=params)
-    reviews = r.json().get("reviews")
-    summary = list(filter(lambda x: x.get("review").get("type") == 4, reviews))
-    reviews = list(filter(lambda x: x.get("review").get("type") == 1, reviews))
-    reviews = list(map(lambda x: x.get("review"), reviews))
-    reviews = list(map(lambda x: {**x, "markText": x.pop("content")}, reviews))
+    reviews_data = []
+    hasMore = 1
+    synckey = 0
+    while hasMore:
+        data = weread.request("/review/list/mine", bookid=bookId, synckey=synckey, count=100)
+        hasMore = data.get("hasMore", 0)
+        synckey = data.get("synckey", 0)
+        batch = data.get("reviews") or []
+        reviews_data.extend(batch)
+        if not batch:
+            hasMore = 0
+    summary = list(filter(lambda x: (x.get("review") or {}).get("type") == 4, reviews_data))
+    reviews = list(filter(lambda x: (x.get("review") or {}).get("type") == 1, reviews_data))
+    reviews = list(map(lambda x: x.get("review") or {}, reviews))
+    reviews = list(map(lambda x: {**x, "markText": x.pop("content", "")}, reviews))
     return summary, reviews
 
 
@@ -116,21 +149,13 @@ def check(bookId):
         except Exception as e:
             print(f"删除块时出错: {e}")
 
-@retry(stop_max_attempt_number=3, wait_fixed=5000,retry_on_exception=refresh_token)
+
+@retry(stop_max_attempt_number=3, wait_fixed=5000)
 def get_chapter_info(bookId):
     """获取章节信息"""
-    session.get(WEREAD_URL)
-    body = {"bookIds": [bookId], "synckeys": [0], "teenmode": 0}
-    r = session.post(WEREAD_CHAPTER_INFO, json=body)
-    if (
-        r.ok
-        and "data" in r.json()
-        and len(r.json()["data"]) == 1
-        and "updated" in r.json()["data"][0]
-    ):
-        update = r.json()["data"][0]["updated"]
-        return {item["chapterUid"]: item for item in update}
-    return None
+    data = weread.request("/book/chapterinfo", bookId=bookId)
+    chapters = data.get("chapters") or []
+    return {item["chapterUid"]: item for item in chapters if "chapterUid" in item}
 
 
 def insert_to_notion(bookName, bookId, cover, sort, author, isbn, rating, categories):
@@ -201,16 +226,23 @@ def add_grandchild(grandchild, results):
 
 def get_notebooklist():
     """获取笔记本列表"""
-    session.get(WEREAD_URL)
-    r = session.get(WEREAD_NOTEBOOKS_URL)
-    if r.ok:
-        data = r.json()
-        books = data.get("books")
-        books.sort(key=lambda x: x["sort"])
-        return books
-    else:
-        print(r.text)
-    return None
+    books = []
+    hasMore = 1
+    lastSort = None
+    while hasMore:
+        params = {"count": 100}
+        if lastSort is not None:
+            params["lastSort"] = lastSort
+        data = weread.request("/user/notebooks", **params)
+        hasMore = data.get("hasMore", 0)
+        batch = data.get("books") or []
+        books.extend(batch)
+        if batch:
+            lastSort = batch[-1].get("sort")
+        else:
+            hasMore = 0
+    books.sort(key=lambda x: x.get("sort") or 0)
+    return books
 
 
 def get_sort():
@@ -251,7 +283,7 @@ def get_children(chapter, summary, bookmark_list):
                     )
                 )
             for i in value:
-                markText = i.get("markText")
+                markText = i.get("markText") or ""
                 for j in range(0, len(markText) // 2000 + 1):
                     children.append(
                         get_callout(
@@ -268,7 +300,7 @@ def get_children(chapter, summary, bookmark_list):
     else:
         # 如果没有章节信息
         for data in bookmark_list:
-            markText = data.get("markText")
+            markText = data.get("markText") or ""
             for i in range(0, len(markText) // 2000 + 1):
                 children.append(
                     get_callout(
@@ -281,7 +313,7 @@ def get_children(chapter, summary, bookmark_list):
     if summary != None and len(summary) > 0:
         children.append(get_heading(1, "点评"))
         for i in summary:
-            content = i.get("review").get("content")
+            content = (i.get("review") or {}).get("content") or ""
             for j in range(0, len(content) // 2000 + 1):
                 children.append(
                     get_callout(
@@ -297,7 +329,7 @@ def get_children(chapter, summary, bookmark_list):
 def transform_id(book_id):
     id_length = len(book_id)
 
-    if re.match("^\d*$", book_id):
+    if re.match(r"^\d*$", book_id):
         ary = []
         for i in range(0, id_length, 9):
             ary.append(format(int(book_id[i : min(i + 9, id_length)]), "x"))
@@ -336,40 +368,6 @@ def calculate_book_str_id(book_id):
     return result
 
 
-def try_get_cloud_cookie(url, id, password):
-    if url.endswith("/"):
-        url = url[:-1]
-    req_url = f"{url}/get/{id}"
-    data = {"password": password}
-    result = None
-    response = requests.post(req_url, data=data)
-    if response.status_code == 200:
-        data = response.json()
-        cookie_data = data.get("cookie_data")
-        if cookie_data and "weread.qq.com" in cookie_data:
-            cookies = cookie_data["weread.qq.com"]
-            cookie_str = "; ".join(
-                [f"{cookie['name']}={cookie['value']}" for cookie in cookies]
-            )
-            result = cookie_str
-    return result
-
-
-def get_cookie():
-    url = os.getenv("CC_URL")
-    if not url:
-        url = "https://cookiecloud.malinkang.com/"
-    id = os.getenv("CC_ID")
-    password = os.getenv("CC_PASSWORD")
-    cookie = os.getenv("WEREAD_COOKIE")
-    if url and id and password:
-        cookie = try_get_cloud_cookie(url, id, password)
-    if not cookie or not cookie.strip():
-        raise Exception("没有找到cookie，请按照文档填写cookie")
-    return cookie
-    
-
-
 def extract_page_id():
     url = os.getenv("NOTION_PAGE")
     if not url:
@@ -386,16 +384,16 @@ def extract_page_id():
     else:
         raise Exception(f"获取NotionID失败，请检查输入的Url是否正确")
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     options = parser.parse_args()
-    weread_cookie = get_cookie()
     database_id = extract_page_id()
     notion_token = os.getenv("NOTION_TOKEN")
-    session = requests.Session()
-    session.cookies = parse_cookie_string(weread_cookie)
+    if not notion_token or not notion_token.strip():
+        raise Exception("没有找到 NOTION_TOKEN，请在 GitHub Actions Secrets 中配置")
+    weread = WeReadGatewayClient(os.getenv("WEREAD_API_KEY"))
     client = Client(auth=notion_token, log_level=logging.ERROR)
-    session.get(WEREAD_URL)
     latest_sort = get_sort()
     books = get_notebooklist()
     if books != None:
@@ -403,11 +401,13 @@ if __name__ == "__main__":
             sort = book["sort"]
             if sort <= latest_sort:
                 continue
-            book = book.get("book")
-            title = book.get("title")
-            cover = book.get("cover").replace("/s_", "/t7_")
+            book = book.get("book") or book
+            title = book.get("title") or ""
+            cover = (book.get("cover") or "").replace("/s_", "/t7_")
             bookId = book.get("bookId")
-            author = book.get("author")
+            author = book.get("author") or ""
+            if not bookId:
+                continue
             categories = book.get("categories")
             if categories != None:
                 categories = [x["title"] for x in categories]
@@ -423,17 +423,7 @@ if __name__ == "__main__":
             bookmark_list.extend(reviews)
             bookmark_list = sorted(
                 bookmark_list,
-                key=lambda x: (
-                    x.get("chapterUid", 1),
-                    (
-                        0
-                        if (
-                            x.get("range", "") == ""
-                            or x.get("range").split("-")[0] == ""
-                        )
-                        else int(x.get("range").split("-")[0])
-                    ),
-                ),
+                key=get_note_sort_key,
             )
             children, grandchild = get_children(chapter, summary, bookmark_list)
             results = add_children(id, children)
