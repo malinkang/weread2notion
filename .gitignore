@@ -1,2 +1,4 @@
 scripts/__pycache__/
 .env
+
+OUT_FOLDER/
