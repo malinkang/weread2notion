@@ -103,7 +103,8 @@ def get_bookmark_list(bookId):
 def get_read_info(bookId):
     data = weread.request("/book/getprogress", bookId=bookId)
     book = data.get("book") or {}
-    progress = book.get("progress") or 0
+    progress = to_number(book.get("progress")) or 0
+    reading_progress = normalize_reading_progress(progress)
     finish_time = book.get("finishTime") or 0
     update_time = book.get("updateTime") or 0
     if finish_time or progress >= 100:
@@ -115,9 +116,16 @@ def get_read_info(bookId):
     return {
         "markedStatus": marked_status,
         "readingTime": book.get("recordReadingTime") or 0,
-        "readingProgress": progress,
+        "readingProgress": reading_progress,
         "finishedDate": finish_time,
     }
+
+
+def normalize_reading_progress(value):
+    value = to_number(value) or 0
+    if value > 1:
+        value = value / 100
+    return round(min(max(value, 0), 1), 4)
 
 
 def normalize_rating(value):
