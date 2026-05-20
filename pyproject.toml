@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "weread2notion"
-version = "1.0.4"
+version = "1.0.5"
 description = "Sync WeRead highlights and notes to Notion."
 readme = "README.md"
 requires-python = ">=3.9"

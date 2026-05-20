@@ -597,6 +597,17 @@ def normalize_date_value(value):
     return value
 
 
+def build_option_property(prop_type, value):
+    names = to_name_list(value)
+    if not names:
+        return None
+    if prop_type == "status":
+        return get_status(names[0])
+    if prop_type == "select":
+        return get_select(names[0])
+    return get_multi_select(names)
+
+
 def build_notion_property(name, value):
     prop_type = get_property_type(name)
     if not prop_type:
@@ -616,13 +627,8 @@ def build_notion_property(name, value):
         return get_number(number) if number is not None else None
     if prop_type == "url":
         return get_url(to_text(value))
-    if prop_type == "multi_select":
-        return get_multi_select(to_name_list(value))
-    if prop_type == "status":
-        return get_status(to_text(value))
-    if prop_type == "select":
-        names = to_name_list(value)
-        return get_select(names[0]) if names else None
+    if prop_type in {"multi_select", "status", "select"}:
+        return build_option_property(prop_type, value)
     if prop_type == "date":
         return get_date(normalize_date_value(value))
     if prop_type == "checkbox":
