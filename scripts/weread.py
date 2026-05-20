@@ -150,7 +150,25 @@ def get_review_list(bookId):
 def check(bookId):
     """检查是否已经插入过 如果已经插入了就删除"""
     filter = {"property": "BookId", "rich_text": {"equals": bookId}}
-    response = client.databases.query(database_id=database_id, filter=filter)
+    try:
+        response = client.databases.query(database_id=database_id, filter=filter)
+    except AttributeError:
+        try:
+            response = client.databases.query_database(database_id=database_id, filter=filter)
+        except AttributeError:
+            url = f"https://api.notion.com/v1/databases/{database_id}/query"
+            auth_token = os.getenv("NOTION_TOKEN")
+            if not auth_token:
+                raise Exception("无法获取 Notion API token")
+            headers = {
+                "Authorization": f"Bearer {auth_token}",
+                "Notion-Version": "2022-06-28",
+                "Content-Type": "application/json"
+            }
+            payload = {"filter": filter}
+            resp = requests.post(url, json=payload, headers=headers)
+            resp.raise_for_status()
+            response = resp.json()
     for result in response["results"]:
         try:
             client.blocks.delete(block_id=result["id"])
@@ -262,9 +280,29 @@ def get_sort():
             "direction": "descending",
         }
     ]
-    response = client.databases.query(
-        database_id=database_id, filter=filter, sorts=sorts, page_size=1
-    )
+    try:
+        response = client.databases.query(
+            database_id=database_id, filter=filter, sorts=sorts, page_size=1
+        )
+    except AttributeError:
+        try:
+            response = client.databases.query_database(
+                database_id=database_id, filter=filter, sorts=sorts, page_size=1
+            )
+        except AttributeError:
+            url = f"https://api.notion.com/v1/databases/{database_id}/query"
+            auth_token = os.getenv("NOTION_TOKEN")
+            if not auth_token:
+                raise Exception("无法获取 Notion API token")
+            headers = {
+                "Authorization": f"Bearer {auth_token}",
+                "Notion-Version": "2022-06-28",
+                "Content-Type": "application/json"
+            }
+            payload = {"filter": filter, "sorts": sorts, "page_size": 1}
+            resp = requests.post(url, json=payload, headers=headers)
+            resp.raise_for_status()
+            response = resp.json()
     if len(response.get("results")) == 1:
         return response.get("results")[0].get("properties").get("Sort").get("number")
     return 0
