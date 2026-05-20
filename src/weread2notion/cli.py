@@ -39,12 +39,103 @@ WEREAD_SKILL_VERSION = "1.0.3"
 NOTION_VERSION = "2026-03-11"
 BOOKMARK_CALLOUT_ICON = "〰️"
 NOTE_CALLOUT_ICON = "✍️"
+NOTION_TOKEN_PATTERN = re.compile(r"^(secret|ntn)_[A-Za-z0-9_-]{20,}$")
+WEREAD_API_KEY_PATTERN = re.compile(r"^[A-Za-z0-9._~+/=-]{10,}$")
+NOTION_ID_PATTERN = re.compile(
+    r"^[a-f0-9]{32}$|^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$",
+    re.IGNORECASE,
+)
+NOTION_ID_IN_TEXT_PATTERN = re.compile(
+    r"([a-f0-9]{32}|[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})",
+    re.IGNORECASE,
+)
+
+
+class ConfigError(Exception):
+    pass
+
+
+def emit_error(message):
+    if os.getenv("GITHUB_ACTIONS") == "true":
+        safe = message.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+        print(f"::error::{safe}")
+    else:
+        print(f"配置错误: {message}")
+
+
+def fail_config(message):
+    emit_error(message)
+    raise ConfigError(message)
+
+
+def clean_secret_value(name, required=False):
+    raw = os.getenv(name)
+    if raw is None:
+        if required:
+            fail_config(f"缺少 {name}，请在 GitHub Actions Secrets 中配置")
+        return None
+    value = re.sub(r"\s+", "", raw)
+    if value:
+        os.environ[name] = value
+        return value
+    if required:
+        fail_config(f"{name} 为空，请检查 GitHub Actions Secrets")
+    os.environ.pop(name, None)
+    return None
+
+
+def validate_regex(name, value, pattern, hint):
+    if value and not pattern.search(value):
+        fail_config(f"{name} 格式不正确：{hint}")
+    return value
+
+
+def validate_secret_inputs():
+    weread_api_key = clean_secret_value("WEREAD_API_KEY", required=True)
+    notion_token = clean_secret_value("NOTION_TOKEN", required=True)
+    notion_page = clean_secret_value("NOTION_PAGE")
+    notion_database_id = clean_secret_value("NOTION_DATABASE_ID")
+    notion_data_source_id = clean_secret_value("NOTION_DATA_SOURCE_ID")
+
+    validate_regex(
+        "WEREAD_API_KEY",
+        weread_api_key,
+        WEREAD_API_KEY_PATTERN,
+        "应为微信读书 Gateway API Key，不能包含空格或换行",
+    )
+    validate_regex(
+        "NOTION_TOKEN",
+        notion_token,
+        NOTION_TOKEN_PATTERN,
+        "应以 secret_ 或 ntn_ 开头，不能包含空格或换行",
+    )
+    for name, value in (
+        ("NOTION_DATA_SOURCE_ID", notion_data_source_id),
+        ("NOTION_DATABASE_ID", notion_database_id),
+    ):
+        validate_regex(
+            name,
+            value,
+            NOTION_ID_PATTERN,
+            "应为 32 位 Notion ID 或带连字符的 UUID",
+        )
+    if notion_page and not NOTION_ID_IN_TEXT_PATTERN.search(notion_page):
+        fail_config("NOTION_PAGE 格式不正确：请填写 Notion 页面链接、数据库链接或 ID")
+    if not (notion_data_source_id or notion_page or notion_database_id):
+        fail_config(
+            "缺少 NOTION_PAGE / NOTION_DATA_SOURCE_ID / NOTION_DATABASE_ID，"
+            "请至少配置其中一个"
+        )
+    return {
+        "weread_api_key": weread_api_key,
+        "notion_token": notion_token,
+    }
 
 
 class WeReadGatewayClient:
     def __init__(self, api_key):
-        if not api_key or not api_key.strip():
-            raise Exception("没有找到 WEREAD_API_KEY，请在 GitHub Actions Secrets 中配置")
+        if not api_key:
+            fail_config("没有找到 WEREAD_API_KEY，请在 GitHub Actions Secrets 中配置")
         self.session = requests.Session()
         self.session.headers.update(
             {
@@ -478,15 +569,12 @@ def extract_notion_id():
         or os.getenv("NOTION_DATABASE_ID")
     )
     if not url_or_id:
-        raise Exception("没有找到 NOTION_PAGE / NOTION_DATA_SOURCE_ID，请按照文档填写")
-    match = re.search(
-        r"([a-f0-9]{32}|[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})",
-        url_or_id,
-    )
+        fail_config("没有找到 NOTION_PAGE / NOTION_DATA_SOURCE_ID，请按照文档填写")
+    match = NOTION_ID_IN_TEXT_PATTERN.search(url_or_id)
     if match:
         return match.group(0)
 
-    raise Exception(f"获取 Notion ID 失败，请检查输入是否正确: {url_or_id}")
+    fail_config("获取 Notion ID 失败，请检查 NOTION_PAGE / NOTION_DATA_SOURCE_ID")
 
 
 def query_data_source(**body):
@@ -695,11 +783,10 @@ def resolve_data_source_id(notion_id):
 
 def sync():
     global client, data_source_id, weread
+    secrets = validate_secret_inputs()
     notion_id = extract_notion_id()
-    notion_token = os.getenv("NOTION_TOKEN")
-    if not notion_token or not notion_token.strip():
-        raise Exception("没有找到 NOTION_TOKEN，请在 GitHub Actions Secrets 中配置")
-    weread = WeReadGatewayClient(os.getenv("WEREAD_API_KEY"))
+    notion_token = secrets["notion_token"]
+    weread = WeReadGatewayClient(secrets["weread_api_key"])
     client = Client(
         auth=notion_token,
         log_level=logging.ERROR,
@@ -762,7 +849,10 @@ def main(argv=None):
         help="Command to run. Defaults to sync.",
     )
     parser.parse_args(argv)
-    sync()
+    try:
+        sync()
+    except ConfigError:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":
