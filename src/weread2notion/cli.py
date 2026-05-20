@@ -196,7 +196,7 @@ def insert_to_notion(bookName, bookId, cover, sort, author, isbn, rating, catego
         title_property_name: bookName,
         "BookId": bookId,
         "ISBN": isbn,
-        "URL": f"https://weread.qq.com/web/reader/{calculate_book_str_id(bookId)}",
+        "链接": f"https://weread.qq.com/web/reader/{calculate_book_str_id(bookId)}",
         "作者": author,
         "Sort": sort,
         "评分": rating,
@@ -205,7 +205,7 @@ def insert_to_notion(bookName, bookId, cover, sort, author, isbn, rating, catego
         raw_properties["分类"] = categories
     read_info = (
         get_read_info(bookId=bookId)
-        if has_any_property(("状态", "阅读时长", "Progress", "时间"))
+        if has_any_property(("状态", "阅读时长", "阅读进度", "时间"))
         else None
     )
     if read_info != None:
@@ -221,7 +221,7 @@ def insert_to_notion(bookName, bookId, cover, sort, author, isbn, rating, catego
             format_time += f"{minutes}分"
         raw_properties["状态"] = "读完" if markedStatus == 4 else "在读"
         raw_properties["阅读时长"] = format_time
-        raw_properties["Progress"] = readingProgress
+        raw_properties["阅读进度"] = readingProgress
         if "finishedDate" in read_info:
             raw_properties["时间"] = datetime.utcfromtimestamp(
                 read_info.get("finishedDate")
