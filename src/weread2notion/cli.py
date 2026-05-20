@@ -19,6 +19,7 @@ from .blocks import (
     get_number,
     get_quote,
     get_rich_text,
+    get_select,
     get_status,
     get_title,
     get_url,
@@ -26,6 +27,9 @@ from .blocks import (
 
 client = None
 data_source_id = None
+data_source_property_types = {}
+title_property_name = None
+skipped_property_names = set()
 weread = None
 
 load_dotenv()
@@ -166,7 +170,7 @@ def get_review_list(bookId):
 
 def check(bookId):
     """检查是否已经插入过 如果已经插入了就删除"""
-    filter = {"property": "BookId", "rich_text": {"equals": bookId}}
+    filter = build_equals_filter("BookId", bookId)
     response = query_data_source(filter=filter)
     for result in response["results"]:
         try:
@@ -188,20 +192,22 @@ def insert_to_notion(bookName, bookId, cover, sort, author, isbn, rating, catego
     if not cover or not cover.startswith("http"):
         cover = "https://www.notion.so/icons/book_gray.svg"
     parent = {"type": "data_source_id", "data_source_id": data_source_id}
-    properties = {
-        "BookName": get_title(bookName),
-        "BookId": get_rich_text(bookId),
-        "ISBN": get_rich_text(isbn),
-        "URL": get_url(
-            f"https://weread.qq.com/web/reader/{calculate_book_str_id(bookId)}"
-        ),
-        "作者": get_rich_text(author),
-        "Sort": get_number(sort),
-        "评分": get_number(rating),
+    raw_properties = {
+        title_property_name: bookName,
+        "BookId": bookId,
+        "ISBN": isbn,
+        "URL": f"https://weread.qq.com/web/reader/{calculate_book_str_id(bookId)}",
+        "作者": author,
+        "Sort": sort,
+        "评分": rating,
     }
     if categories != None:
-        properties["分类"] = get_multi_select(categories)
-    read_info = get_read_info(bookId=bookId)
+        raw_properties["分类"] = categories
+    read_info = (
+        get_read_info(bookId=bookId)
+        if has_any_property(("状态", "阅读时长", "Progress", "时间"))
+        else None
+    )
     if read_info != None:
         markedStatus = read_info.get("markedStatus", 0)
         readingTime = read_info.get("readingTime", 0)
@@ -213,16 +219,17 @@ def insert_to_notion(bookName, bookId, cover, sort, author, isbn, rating, catego
         minutes = readingTime % 3600 // 60
         if minutes > 0:
             format_time += f"{minutes}分"
-        properties["状态"] = get_status("读完" if markedStatus == 4 else "在读")
-        properties["阅读时长"] = get_rich_text(format_time)
-        properties["Progress"] = get_number(readingProgress)
+        raw_properties["状态"] = "读完" if markedStatus == 4 else "在读"
+        raw_properties["阅读时长"] = format_time
+        raw_properties["Progress"] = readingProgress
         if "finishedDate" in read_info:
-            properties["时间"] = get_date(
-                datetime.utcfromtimestamp(read_info.get("finishedDate")).strftime(
-                    "%Y-%m-%d %H:%M:%S"
-                )
+            raw_properties["时间"] = datetime.utcfromtimestamp(
+                read_info.get("finishedDate")
+            ).strftime(
+                "%Y-%m-%d %H:%M:%S"
             )
 
+    properties = build_notion_properties(raw_properties)
     icon = get_icon(cover)
     # notion api 限制100个block
     response = client.pages.create(parent=parent, icon=icon,cover=icon, properties=properties)
@@ -271,7 +278,7 @@ def get_notebooklist():
 
 def get_sort():
     """获取 data source 中的最新时间"""
-    filter = {"property": "Sort", "number": {"is_not_empty": True}}
+    filter = build_is_not_empty_filter("Sort")
     sorts = [
         {
             "property": "Sort",
@@ -280,7 +287,9 @@ def get_sort():
     ]
     response = query_data_source(filter=filter, sorts=sorts, page_size=1)
     if len(response.get("results")) == 1:
-        return response.get("results")[0].get("properties").get("Sort").get("number")
+        return get_number_property_value(
+            response.get("results")[0].get("properties").get("Sort")
+        )
     return 0
 
 
@@ -480,6 +489,173 @@ def query_data_source(**body):
     )
 
 
+def load_data_source_schema():
+    """读取当前 data source 的真实属性，只强制要求同步游标需要的字段。"""
+    global data_source_property_types, title_property_name, skipped_property_names
+    response = client.request(path=f"data_sources/{data_source_id}", method="GET")
+    properties = response.get("properties") or {}
+    data_source_property_types = {
+        name: (config or {}).get("type") for name, config in properties.items()
+    }
+    title_property_name = next(
+        (
+            name
+            for name, prop_type in data_source_property_types.items()
+            if prop_type == "title"
+        ),
+        None,
+    )
+    skipped_property_names = set()
+    if not title_property_name:
+        raise Exception("Notion data source 缺少标题属性，请保留一个 Title 类型属性")
+
+    missing = [
+        name for name in ("BookId", "Sort") if name not in data_source_property_types
+    ]
+    if missing:
+        raise Exception(
+            f"Notion data source 缺少必填属性: {', '.join(missing)}。"
+            "请在模板中补充后重试"
+        )
+
+    print(
+        f"已读取 Notion 属性 {len(data_source_property_types)} 个，"
+        f"标题属性: {title_property_name}"
+    )
+
+
+def get_property_type(name):
+    return data_source_property_types.get(name)
+
+
+def has_any_property(names):
+    return any(name in data_source_property_types for name in names)
+
+
+def build_equals_filter(name, value):
+    prop_type = get_property_type(name)
+    if prop_type in {"title", "rich_text", "url", "email", "phone_number"}:
+        return {"property": name, prop_type: {"equals": str(value)}}
+    if prop_type == "number":
+        return {"property": name, "number": {"equals": to_number(value)}}
+    if prop_type == "select":
+        return {"property": name, "select": {"equals": str(value)}}
+    if prop_type == "status":
+        return {"property": name, "status": {"equals": str(value)}}
+    raise Exception(f"Notion 属性 {name} 的类型 {prop_type} 暂不支持用于查询")
+
+
+def build_is_not_empty_filter(name):
+    prop_type = get_property_type(name)
+    if prop_type in {
+        "title",
+        "rich_text",
+        "url",
+        "email",
+        "phone_number",
+        "number",
+        "select",
+        "status",
+        "date",
+    }:
+        return {"property": name, prop_type: {"is_not_empty": True}}
+    raise Exception(f"Notion 属性 {name} 的类型 {prop_type} 暂不支持用于查询")
+
+
+def to_text(value):
+    if value is None:
+        return ""
+    if isinstance(value, (list, tuple)):
+        return ", ".join(to_text(item) for item in value if item is not None)
+    return str(value)
+
+
+def to_name_list(value):
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple, set)):
+        return [to_text(item) for item in value if to_text(item)]
+    text = to_text(value)
+    return [text] if text else []
+
+
+def to_number(value):
+    if value is None or value == "":
+        return None
+    if isinstance(value, (int, float)):
+        return value
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return int(number) if number.is_integer() else number
+
+
+def normalize_date_value(value):
+    if isinstance(value, (int, float)):
+        return datetime.utcfromtimestamp(value).strftime("%Y-%m-%d %H:%M:%S")
+    return value
+
+
+def build_notion_property(name, value):
+    prop_type = get_property_type(name)
+    if not prop_type:
+        if name not in skipped_property_names:
+            print(f"属性 {name} 在 Notion 模板中不存在，自动跳过")
+            skipped_property_names.add(name)
+        return None
+    if value is None:
+        return None
+
+    if prop_type == "title":
+        return get_title(to_text(value))
+    if prop_type == "rich_text":
+        return get_rich_text(to_text(value))
+    if prop_type == "number":
+        number = to_number(value)
+        return get_number(number) if number is not None else None
+    if prop_type == "url":
+        return get_url(to_text(value))
+    if prop_type == "multi_select":
+        return get_multi_select(to_name_list(value))
+    if prop_type == "status":
+        return get_status(to_text(value))
+    if prop_type == "select":
+        names = to_name_list(value)
+        return get_select(names[0]) if names else None
+    if prop_type == "date":
+        return get_date(normalize_date_value(value))
+    if prop_type == "checkbox":
+        return {"checkbox": bool(value)}
+
+    if name not in skipped_property_names:
+        print(f"属性 {name} 的类型 {prop_type} 暂不支持写入，自动跳过")
+        skipped_property_names.add(name)
+    return None
+
+
+def build_notion_properties(raw_properties):
+    return {
+        name: prop
+        for name, value in raw_properties.items()
+        if (prop := build_notion_property(name, value)) is not None
+    }
+
+
+def get_number_property_value(property_value):
+    if not property_value:
+        return 0
+    prop_type = property_value.get("type")
+    value = property_value.get(prop_type)
+    if prop_type == "number":
+        return value or 0
+    if prop_type in {"title", "rich_text"} and value:
+        return to_number(value[0].get("plain_text")) or 0
+    if prop_type in {"select", "status"} and value:
+        return to_number(value.get("name")) or 0
+    return 0
+
+
 def resolve_data_source_id(notion_id):
     if os.getenv("NOTION_DATA_SOURCE_ID"):
         return notion_id
@@ -518,6 +694,7 @@ def sync():
     data_source_id = resolve_data_source_id(notion_id)
     print(f"Notion API Version: {NOTION_VERSION}")
     print(f"Notion Data Source ID: {data_source_id}")
+    load_data_source_schema()
     latest_sort = get_sort()
     books = get_notebooklist()
     if books != None:
@@ -537,7 +714,10 @@ def sync():
                 categories = [x["title"] for x in categories]
             print(f"正在同步 {title} ,一共{len(books)}本，当前是第{index+1}本。")
             check(bookId)
-            isbn, rating = get_bookinfo(bookId)
+            if has_any_property(("ISBN", "评分")):
+                isbn, rating = get_bookinfo(bookId)
+            else:
+                isbn, rating = "", None
             id = insert_to_notion(
                 title, bookId, cover, sort, author, isbn, rating, categories
             )
