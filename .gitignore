@@ -1,4 +1,9 @@
-scripts/__pycache__/
-.env
 
+*.egg-info/
+*.py[cod]
+.env
 OUT_FOLDER/
+__pycache__/
+build/
+dist/
+scripts/__pycache__/

@@ -1,0 +1,42 @@
+name: weread2notion sync
+description: Sync WeRead highlights and notes to Notion.
+author: malinkang
+
+inputs:
+  weread-api-key:
+    description: WeRead Gateway API key.
+    required: true
+  notion-token:
+    description: Notion integration token.
+    required: true
+  notion-page:
+    description: Notion database page URL or database ID.
+    required: false
+  notion-database-id:
+    description: Notion database ID. Used when notion-page is not set.
+    required: false
+  python-version:
+    description: Python version used to run the sync.
+    required: false
+    default: "3.11"
+
+runs:
+  using: composite
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+    - name: Install weread2notion
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        pip install "$GITHUB_ACTION_PATH"
+    - name: Sync WeRead to Notion
+      shell: bash
+      env:
+        WEREAD_API_KEY: ${{ inputs.weread-api-key }}
+        NOTION_TOKEN: ${{ inputs.notion-token }}
+        NOTION_PAGE: ${{ inputs.notion-page }}
+        NOTION_DATABASE_ID: ${{ inputs.notion-database-id }}
+      run: weread2notion sync

@@ -4,26 +4,18 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "0 0 * * *"
+
 jobs:
   sync:
     name: Sync
     runs-on: ubuntu-latest
-    env:
-      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-      NOTION_PAGE: ${{ secrets.NOTION_PAGE }}
-      NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
-      WEREAD_API_KEY: ${{ secrets.WEREAD_API_KEY }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
-      - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/checkout@v4
+      - name: WeRead to Notion
+        uses: ./
         with:
-          python-version: 3.9
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-      - name: weread sync
-        run: |
-          python scripts/weread.py
+          weread-api-key: ${{ secrets.WEREAD_API_KEY }}
+          notion-token: ${{ secrets.NOTION_TOKEN }}
+          notion-page: ${{ secrets.NOTION_PAGE }}
+          notion-database-id: ${{ secrets.NOTION_DATABASE_ID }}

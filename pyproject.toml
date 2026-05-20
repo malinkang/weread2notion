@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "weread2notion"
+version = "1.0.0"
+description = "Sync WeRead highlights and notes to Notion."
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [{name = "malinkang"}]
+dependencies = [
+  "requests",
+  "notion-client",
+  "python-dotenv",
+  "retrying",
+]
+
+[project.scripts]
+weread2notion = "weread2notion.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
