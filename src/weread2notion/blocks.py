@@ -64,6 +64,10 @@ def get_select(name):
     return {"select": {"name": name}}
 
 
+def get_status(name):
+    return {"status": {"name": name}}
+
+
 def get_number(number):
     return {"number": number}
 

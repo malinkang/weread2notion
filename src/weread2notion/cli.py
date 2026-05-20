@@ -13,14 +13,13 @@ from retrying import retry
 from .blocks import (
     get_callout,
     get_date,
-    get_file,
     get_heading,
     get_icon,
     get_multi_select,
     get_number,
     get_quote,
     get_rich_text,
-    get_select,
+    get_status,
     get_title,
     get_url,
 )
@@ -196,13 +195,12 @@ def insert_to_notion(bookName, bookId, cover, sort, author, isbn, rating, catego
         "URL": get_url(
             f"https://weread.qq.com/web/reader/{calculate_book_str_id(bookId)}"
         ),
-        "Author": get_rich_text(author),
+        "作者": get_rich_text(author),
         "Sort": get_number(sort),
-        "Rating": get_number(rating),
-        "Cover": get_file(cover),
+        "评分": get_number(rating),
     }
     if categories != None:
-        properties["Categories"] = get_multi_select(categories)
+        properties["分类"] = get_multi_select(categories)
     read_info = get_read_info(bookId=bookId)
     if read_info != None:
         markedStatus = read_info.get("markedStatus", 0)
@@ -215,11 +213,11 @@ def insert_to_notion(bookName, bookId, cover, sort, author, isbn, rating, catego
         minutes = readingTime % 3600 // 60
         if minutes > 0:
             format_time += f"{minutes}分"
-        properties["Status"] = get_select("读完" if markedStatus == 4 else "在读")
-        properties["ReadingTime"] = get_rich_text(format_time)
+        properties["状态"] = get_status("读完" if markedStatus == 4 else "在读")
+        properties["阅读时长"] = get_rich_text(format_time)
         properties["Progress"] = get_number(readingProgress)
         if "finishedDate" in read_info:
-            properties["Date"] = get_date(
+            properties["时间"] = get_date(
                 datetime.utcfromtimestamp(read_info.get("finishedDate")).strftime(
                     "%Y-%m-%d %H:%M:%S"
                 )
