@@ -4,7 +4,7 @@
 
 本项目使用微信读书 API Key 读取数据，并通过 GitHub Actions 定时同步到 Notion。新版不再需要复制微信读书 Cookie。
 
-预览效果：https://malinkang.notion.site/weread2notion?
+预览效果：https://malinkang.notion.site/weread2notion
 
 > [!WARNING]
 > WeRead2Notion 会在检测到书籍笔记更新时删除原来的同步页面，然后重新写入微信读书数据。请不要在同步生成的 Notion 书籍页面里添加自己的笔记、批注或其他重要内容，否则下次同步时可能会被删除且无法恢复。
