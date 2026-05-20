@@ -34,6 +34,8 @@ WEREAD_URL = "https://weread.qq.com/"
 WEREAD_GATEWAY_URL = "https://i.weread.qq.com/api/agent/gateway"
 WEREAD_SKILL_VERSION = "1.0.3"
 NOTION_VERSION = "2026-03-11"
+BOOKMARK_CALLOUT_ICON = "〰️"
+NOTE_CALLOUT_ICON = "✍️"
 
 
 class WeReadGatewayClient:
@@ -150,7 +152,16 @@ def get_review_list(bookId):
     summary = list(filter(lambda x: (x.get("review") or {}).get("type") == 4, reviews_data))
     reviews = list(filter(lambda x: (x.get("review") or {}).get("type") == 1, reviews_data))
     reviews = list(map(lambda x: x.get("review") or {}, reviews))
-    reviews = list(map(lambda x: {**x, "markText": x.pop("content", "")}, reviews))
+    reviews = list(
+        map(
+            lambda x: {
+                **x,
+                "markText": x.pop("content", ""),
+                "_callout_icon": NOTE_CALLOUT_ICON,
+            },
+            reviews,
+        )
+    )
     return summary, reviews
 
 
@@ -362,9 +373,13 @@ def get_children(chapter, summary, bookmark_list):
                 markText = i.get("markText") or ""
                 if not markText:
                     continue
+                callout_icon = i.get("_callout_icon") or BOOKMARK_CALLOUT_ICON
                 for j in range(0, len(markText) // 2000 + 1):
                     children.append(
-                        get_callout(markText[j * 2000 : (j + 1) * 2000])
+                        get_callout(
+                            markText[j * 2000 : (j + 1) * 2000],
+                            icon=callout_icon,
+                        )
                     )
                 if i.get("abstract") != None and i.get("abstract") != "":
                     quote = get_quote(i.get("abstract"))
@@ -378,7 +393,10 @@ def get_children(chapter, summary, bookmark_list):
                 continue
             for i in range(0, len(markText) // 2000 + 1):
                 children.append(
-                    get_callout(markText[i * 2000 : (i + 1) * 2000])
+                    get_callout(
+                        markText[i * 2000 : (i + 1) * 2000],
+                        icon=BOOKMARK_CALLOUT_ICON,
+                    )
                 )
     if summary != None and len(summary) > 0:
         children.append(get_heading(1, "点评"))
@@ -388,7 +406,10 @@ def get_children(chapter, summary, bookmark_list):
                 continue
             for j in range(0, len(content) // 2000 + 1):
                 children.append(
-                    get_callout(content[j * 2000 : (j + 1) * 2000])
+                    get_callout(
+                        content[j * 2000 : (j + 1) * 2000],
+                        icon=NOTE_CALLOUT_ICON,
+                    )
                 )
     return children, grandchild
 

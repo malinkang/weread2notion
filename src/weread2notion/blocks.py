@@ -83,17 +83,20 @@ def get_quote(content):
     }
 
 
-def get_callout(content):
+def get_callout(content, icon=None):
+    callout = {
+        "rich_text": [
+            {
+                "type": "text",
+                "text": {
+                    "content": content,
+                },
+            }
+        ],
+    }
+    if icon:
+        callout["icon"] = {"type": "emoji", "emoji": icon}
     return {
         "type": "callout",
-        "callout": {
-            "rich_text": [
-                {
-                    "type": "text",
-                    "text": {
-                        "content": content,
-                    },
-                }
-            ],
-        },
+        "callout": callout,
     }
