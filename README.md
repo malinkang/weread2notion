@@ -29,6 +29,8 @@ jobs:
           weread-api-key: ${{ secrets.WEREAD_API_KEY }}
           notion-token: ${{ secrets.NOTION_TOKEN }}
           notion-page: ${{ secrets.NOTION_PAGE }}
+          # 或直接使用新版 Notion data source ID
+          # notion-data-source-id: ${{ secrets.NOTION_DATA_SOURCE_ID }}
 ```
 
 然后在 GitHub 仓库的 `Settings -> Secrets and variables -> Actions -> Repository secrets` 中配置：
@@ -38,8 +40,9 @@ jobs:
 | `WEREAD_API_KEY` | 微信读书 API Key |
 | `NOTION_TOKEN` | Notion Integration Token |
 | `NOTION_PAGE` | 目标 Notion 数据库页面链接或数据库 ID |
+| `NOTION_DATA_SOURCE_ID` | 可选，Notion data source ID，优先级高于 `NOTION_PAGE` |
 
-也可以使用 `NOTION_DATABASE_ID`，对应 Action 输入是 `notion-database-id`。
+也可以使用 `NOTION_DATABASE_ID`，对应 Action 输入是 `notion-database-id`。新版 Notion API 使用 `Notion-Version: 2026-03-11` 和 data source API；如果传入的是旧 database ID/URL，脚本会自动解析并使用第一个 data source。
 
 ## 版本选择
 
@@ -85,6 +88,7 @@ export WEREAD_API_KEY="..."
 export NOTION_TOKEN="..."
 export NOTION_PAGE="https://www.notion.so/..."
 # 或 export NOTION_DATABASE_ID="..."
+# 或优先使用 export NOTION_DATA_SOURCE_ID="..."
 weread2notion sync
 ```
 

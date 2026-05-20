@@ -8,6 +8,7 @@ import requests
 from datetime import datetime
 import hashlib
 from dotenv import load_dotenv
+from notion_client.errors import APIResponseError
 from retrying import retry
 from .blocks import (
     get_callout,
@@ -25,13 +26,14 @@ from .blocks import (
 )
 
 client = None
-database_id = None
+data_source_id = None
 weread = None
 
 load_dotenv()
 WEREAD_URL = "https://weread.qq.com/"
 WEREAD_GATEWAY_URL = "https://i.weread.qq.com/api/agent/gateway"
 WEREAD_SKILL_VERSION = "1.0.3"
+NOTION_VERSION = "2026-03-11"
 
 
 class WeReadGatewayClient:
@@ -155,7 +157,7 @@ def get_review_list(bookId):
 def check(bookId):
     """检查是否已经插入过 如果已经插入了就删除"""
     filter = {"property": "BookId", "rich_text": {"equals": bookId}}
-    response = client.databases.query(database_id=database_id, filter=filter)
+    response = query_data_source(filter=filter)
     for result in response["results"]:
         try:
             client.blocks.delete(block_id=result["id"])
@@ -175,7 +177,7 @@ def insert_to_notion(bookName, bookId, cover, sort, author, isbn, rating, catego
     """插入到notion"""
     if not cover or not cover.startswith("http"):
         cover = "https://www.notion.so/icons/book_gray.svg"
-    parent = {"database_id": database_id, "type": "database_id"}
+    parent = {"type": "data_source_id", "data_source_id": data_source_id}
     properties = {
         "BookName": get_title(bookName),
         "BookId": get_rich_text(bookId),
@@ -259,7 +261,7 @@ def get_notebooklist():
 
 
 def get_sort():
-    """获取database中的最新时间"""
+    """获取 data source 中的最新时间"""
     filter = {"property": "Sort", "number": {"is_not_empty": True}}
     sorts = [
         {
@@ -267,9 +269,7 @@ def get_sort():
             "direction": "descending",
         }
     ]
-    response = client.databases.query(
-        database_id=database_id, filter=filter, sorts=sorts, page_size=1
-    )
+    response = query_data_source(filter=filter, sorts=sorts, page_size=1)
     if len(response.get("results")) == 1:
         return response.get("results")[0].get("properties").get("Sort").get("number")
     return 0
@@ -435,31 +435,70 @@ def calculate_book_str_id(book_id):
     return result
 
 
-def extract_page_id():
-    url = os.getenv("NOTION_PAGE")
-    if not url:
-        url = os.getenv("NOTION_DATABASE_ID")
-    if not url:
-        raise Exception("没有找到NOTION_PAGE，请按照文档填写")
-    # 正则表达式匹配 32 个字符的 Notion page_id
+def extract_notion_id():
+    url_or_id = (
+        os.getenv("NOTION_DATA_SOURCE_ID")
+        or os.getenv("NOTION_PAGE")
+        or os.getenv("NOTION_DATABASE_ID")
+    )
+    if not url_or_id:
+        raise Exception("没有找到 NOTION_PAGE / NOTION_DATA_SOURCE_ID，请按照文档填写")
     match = re.search(
         r"([a-f0-9]{32}|[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})",
-        url,
+        url_or_id,
     )
     if match:
         return match.group(0)
-    else:
-        raise Exception(f"获取NotionID失败，请检查输入的Url是否正确")
+
+    raise Exception(f"获取 Notion ID 失败，请检查输入是否正确: {url_or_id}")
+
+
+def query_data_source(**body):
+    return client.request(
+        path=f"data_sources/{data_source_id}/query",
+        method="POST",
+        body=body,
+    )
+
+
+def resolve_data_source_id(notion_id):
+    if os.getenv("NOTION_DATA_SOURCE_ID"):
+        return notion_id
+
+    try:
+        client.request(path=f"data_sources/{notion_id}", method="GET")
+        return notion_id
+    except APIResponseError as error:
+        code = getattr(error.code, "value", error.code)
+        if code not in {"object_not_found", "validation_error"}:
+            raise
+
+    database = client.request(path=f"databases/{notion_id}", method="GET")
+    sources = database.get("data_sources") or []
+    if not sources:
+        raise Exception(f"数据库 {notion_id} 下没有可用的 data source")
+    if len(sources) > 1:
+        print(
+            f"数据库 {notion_id} 包含 {len(sources)} 个 data sources，默认使用第一个: {sources[0].get('id')}"
+        )
+    return sources[0]["id"]
 
 
 def sync():
-    global client, database_id, weread
-    database_id = extract_page_id()
+    global client, data_source_id, weread
+    notion_id = extract_notion_id()
     notion_token = os.getenv("NOTION_TOKEN")
     if not notion_token or not notion_token.strip():
         raise Exception("没有找到 NOTION_TOKEN，请在 GitHub Actions Secrets 中配置")
     weread = WeReadGatewayClient(os.getenv("WEREAD_API_KEY"))
-    client = Client(auth=notion_token, log_level=logging.ERROR)
+    client = Client(
+        auth=notion_token,
+        log_level=logging.ERROR,
+        notion_version=NOTION_VERSION,
+    )
+    data_source_id = resolve_data_source_id(notion_id)
+    print(f"Notion API Version: {NOTION_VERSION}")
+    print(f"Notion Data Source ID: {data_source_id}")
     latest_sort = get_sort()
     books = get_notebooklist()
     if books != None:
