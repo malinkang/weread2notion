@@ -13,6 +13,7 @@ from retrying import retry
 from .blocks import (
     get_callout,
     get_date,
+    get_file,
     get_heading,
     get_icon,
     get_multi_select,
@@ -209,6 +210,7 @@ def get_read_info(bookId):
         "readingTime": book.get("recordReadingTime") or 0,
         "readingProgress": reading_progress,
         "finishedDate": finish_time,
+        "activityDate": finish_time or update_time,
     }
 
 
@@ -232,9 +234,35 @@ def normalize_rating(value):
 def get_bookinfo(bookId):
     """获取书的详情"""
     data = weread.request("/book/info", bookId=bookId)
-    isbn = data.get("isbn", "")
-    newRating = normalize_rating(data.get("newRating"))
-    return (isbn, newRating)
+    book = data.get("book") or data
+    return {
+        "isbn": book.get("isbn") or data.get("isbn") or "",
+        "rating": normalize_rating(
+            book.get("newRating") or data.get("newRating")
+        ),
+        "cover": book.get("cover") or data.get("cover") or "",
+        "categories": normalize_categories(
+            book.get("categories") or data.get("categories")
+        ),
+    }
+
+
+def normalize_categories(value):
+    """兼容分类为字符串、字符串数组或对象数组的情况。"""
+    if not value:
+        return []
+    if isinstance(value, str):
+        value = [value]
+    categories = []
+    for item in value:
+        if isinstance(item, dict):
+            name = item.get("title") or item.get("name") or ""
+        else:
+            name = str(item)
+        name = name.strip()
+        if name and name not in categories:
+            categories.append(name)
+    return categories
 
 
 @retry(stop_max_attempt_number=3, wait_fixed=5000)
@@ -360,12 +388,14 @@ def build_book_raw_properties(
         set_aliased_property(
             raw_properties, PROPERTY_ALIASES["progress"], reading_progress
         )
-        finished_date = read_info.get("finishedDate") or 0
-        if finished_date:
+        activity_date = read_info.get("activityDate") or 0
+        if activity_date:
             set_aliased_property(
                 raw_properties,
                 PROPERTY_ALIASES["date"],
-                datetime.utcfromtimestamp(finished_date).strftime("%Y-%m-%d %H:%M:%S"),
+                datetime.fromtimestamp(normalize_timestamp(activity_date)).strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                ),
             )
     return raw_properties
 
@@ -763,7 +793,16 @@ def to_number(value):
 
 def normalize_date_value(value):
     if isinstance(value, (int, float)):
-        return datetime.utcfromtimestamp(value).strftime("%Y-%m-%d %H:%M:%S")
+        return datetime.fromtimestamp(normalize_timestamp(value)).strftime(
+            "%Y-%m-%d %H:%M:%S"
+        )
+    return value
+
+
+def normalize_timestamp(value):
+    value = to_number(value) or 0
+    if value > 100000000000:
+        value = value / 1000
     return value
 
 
@@ -797,6 +836,9 @@ def build_notion_property(name, value):
         return get_number(number) if number is not None else None
     if prop_type == "url":
         return get_url(to_text(value))
+    if prop_type == "files":
+        url = to_text(value)
+        return get_file(url) if url.startswith("http") else None
     if prop_type in {"multi_select", "status", "select"}:
         return build_option_property(prop_type, value)
     if prop_type == "date":
@@ -882,12 +924,20 @@ def sync():
             author = book.get("author") or ""
             if not bookId:
                 continue
-            categories = book.get("categories")
-            if categories != None:
-                categories = [x["title"] for x in categories]
+            categories = normalize_categories(book.get("categories"))
             print(f"正在同步 {title} ,一共{len(books)}本，当前是第{index+1}本。")
-            if has_any_property(("ISBN",) + PROPERTY_ALIASES["rating"]):
-                isbn, rating = get_bookinfo(bookId)
+            detail_properties = (
+                ("ISBN",)
+                + PROPERTY_ALIASES["rating"]
+                + PROPERTY_ALIASES["cover"]
+                + PROPERTY_ALIASES["categories"]
+            )
+            if has_any_property(detail_properties):
+                book_info = get_bookinfo(bookId)
+                isbn = book_info["isbn"]
+                rating = book_info["rating"]
+                cover = cover or book_info["cover"]
+                categories = categories or book_info["categories"]
             else:
                 isbn, rating = "", None
             raw_properties = build_book_raw_properties(
