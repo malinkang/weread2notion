@@ -286,47 +286,121 @@ def get_chapter_info(bookId):
     return {item["chapterUid"]: item for item in chapters if "chapterUid" in item}
 
 
-def insert_to_notion(bookName, bookId, cover, sort, author, isbn, rating, categories):
+PROPERTY_ALIASES = {
+    "categories": ("Categories", "分类"),
+    "cover": ("Cover", "封面"),
+    "date": ("Date", "时间"),
+    "progress": ("Progress", "阅读进度"),
+    "reading_time": ("ReadingTime", "阅读时长"),
+    "status": ("Status", "状态"),
+    "author": ("作者", "Author"),
+    "rating": ("评分", "Rating"),
+    "link": ("链接", "Link"),
+}
+
+
+def find_property_name(*names):
+    return next((name for name in names if name in data_source_property_types), None)
+
+
+def set_aliased_property(raw_properties, aliases, value):
+    name = find_property_name(*aliases)
+    if name and value is not None:
+        raw_properties[name] = value
+
+
+def build_book_raw_properties(
+    bookName, bookId, cover, sort, author, isbn, rating, categories
+):
+    if not cover or not cover.startswith("http"):
+        cover = "https://www.notion.so/icons/book_gray.svg"
+    raw_properties = {
+        title_property_name: bookName,
+        "BookId": bookId,
+        "Sort": sort,
+    }
+    if "ISBN" in data_source_property_types:
+        raw_properties["ISBN"] = isbn
+    set_aliased_property(
+        raw_properties,
+        PROPERTY_ALIASES["link"],
+        f"https://weread.qq.com/web/reader/{calculate_book_str_id(bookId)}",
+    )
+    set_aliased_property(raw_properties, PROPERTY_ALIASES["cover"], cover)
+    set_aliased_property(raw_properties, PROPERTY_ALIASES["author"], author)
+    set_aliased_property(raw_properties, PROPERTY_ALIASES["rating"], rating)
+    set_aliased_property(raw_properties, PROPERTY_ALIASES["categories"], categories)
+
+    progress_properties = (
+        PROPERTY_ALIASES["status"]
+        + PROPERTY_ALIASES["reading_time"]
+        + PROPERTY_ALIASES["progress"]
+        + PROPERTY_ALIASES["date"]
+    )
+    if has_any_property(progress_properties):
+        read_info = get_read_info(bookId=bookId)
+        marked_status = read_info.get("markedStatus", 0)
+        reading_time = read_info.get("readingTime", 0)
+        reading_progress = read_info.get("readingProgress", 0)
+        hours, remainder = divmod(reading_time, 3600)
+        minutes = remainder // 60
+        format_time = ""
+        if hours:
+            format_time += f"{hours}时"
+        if minutes:
+            format_time += f"{minutes}分"
+        if not format_time:
+            format_time = "0分"
+
+        status = "读完" if marked_status == 4 else "在读"
+        set_aliased_property(raw_properties, PROPERTY_ALIASES["status"], status)
+        set_aliased_property(
+            raw_properties, PROPERTY_ALIASES["reading_time"], format_time
+        )
+        set_aliased_property(
+            raw_properties, PROPERTY_ALIASES["progress"], reading_progress
+        )
+        finished_date = read_info.get("finishedDate") or 0
+        if finished_date:
+            set_aliased_property(
+                raw_properties,
+                PROPERTY_ALIASES["date"],
+                datetime.utcfromtimestamp(finished_date).strftime("%Y-%m-%d %H:%M:%S"),
+            )
+    return raw_properties
+
+
+def get_existing_page(bookId):
+    response = query_data_source(filter=build_equals_filter("BookId", bookId))
+    results = response.get("results") or []
+    return results[0] if results else None
+
+
+def update_notion_properties(page_id, raw_properties):
+    properties = build_notion_properties(raw_properties)
+    if properties:
+        client.pages.update(page_id=page_id, properties=properties)
+
+
+def insert_to_notion(
+    bookName,
+    bookId,
+    cover,
+    sort,
+    author,
+    isbn,
+    rating,
+    categories,
+    raw_properties=None,
+):
     """插入到notion"""
     if not cover or not cover.startswith("http"):
         cover = "https://www.notion.so/icons/book_gray.svg"
     parent = {"type": "data_source_id", "data_source_id": data_source_id}
-    raw_properties = {
-        title_property_name: bookName,
-        "BookId": bookId,
-        "ISBN": isbn,
-        "链接": f"https://weread.qq.com/web/reader/{calculate_book_str_id(bookId)}",
-        "作者": author,
-        "Sort": sort,
-        "评分": rating,
-    }
-    if categories != None:
-        raw_properties["分类"] = categories
-    read_info = (
-        get_read_info(bookId=bookId)
-        if has_any_property(("状态", "阅读时长", "阅读进度", "时间"))
-        else None
-    )
-    if read_info != None:
-        markedStatus = read_info.get("markedStatus", 0)
-        readingTime = read_info.get("readingTime", 0)
-        readingProgress = read_info.get("readingProgress", 0)
-        format_time = ""
-        hour = readingTime // 3600
-        if hour > 0:
-            format_time += f"{hour}时"
-        minutes = readingTime % 3600 // 60
-        if minutes > 0:
-            format_time += f"{minutes}分"
-        raw_properties["状态"] = "读完" if markedStatus == 4 else "在读"
-        raw_properties["阅读时长"] = format_time
-        raw_properties["阅读进度"] = readingProgress
-        if "finishedDate" in read_info:
-            raw_properties["时间"] = datetime.utcfromtimestamp(
-                read_info.get("finishedDate")
-            ).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            )
+    if raw_properties is None:
+        raw_properties = build_book_raw_properties(
+            bookName, bookId, cover, sort, author, isbn, rating, categories
+        )
 
     properties = build_notion_properties(raw_properties)
     icon = get_icon(cover)
@@ -801,8 +875,6 @@ def sync():
     if books != None:
         for index, book in enumerate(books):
             sort = book["sort"]
-            if sort <= latest_sort:
-                continue
             book = book.get("book") or book
             title = book.get("title") or ""
             cover = (book.get("cover") or "").replace("/s_", "/t7_")
@@ -814,13 +886,33 @@ def sync():
             if categories != None:
                 categories = [x["title"] for x in categories]
             print(f"正在同步 {title} ,一共{len(books)}本，当前是第{index+1}本。")
-            check(bookId)
-            if has_any_property(("ISBN", "评分")):
+            if has_any_property(("ISBN",) + PROPERTY_ALIASES["rating"]):
                 isbn, rating = get_bookinfo(bookId)
             else:
                 isbn, rating = "", None
-            id = insert_to_notion(
+            raw_properties = build_book_raw_properties(
                 title, bookId, cover, sort, author, isbn, rating, categories
+            )
+            existing_page = get_existing_page(bookId)
+            if existing_page:
+                update_notion_properties(existing_page["id"], raw_properties)
+            if sort <= latest_sort and existing_page:
+                continue
+            if existing_page:
+                try:
+                    client.blocks.delete(block_id=existing_page["id"])
+                except Exception as e:
+                    print(f"删除旧页面时出错: {e}")
+            id = insert_to_notion(
+                title,
+                bookId,
+                cover,
+                sort,
+                author,
+                isbn,
+                rating,
+                categories,
+                raw_properties,
             )
             chapter = get_chapter_info(bookId)
             bookmark_list = get_bookmark_list(bookId)
