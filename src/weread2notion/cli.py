@@ -324,6 +324,7 @@ PROPERTY_ALIASES = {
     "date": ("Date", "时间"),
     "progress": ("Progress", "阅读进度"),
     "reading_time": ("ReadingTime", "阅读时长"),
+    "reading_minutes": ("阅读分钟", "ReadingMinutes"),
     "status": ("Status", "状态"),
     "author": ("作者", "Author"),
     "rating": ("评分", "Rating"),
@@ -366,6 +367,7 @@ def build_book_raw_properties(
     progress_properties = (
         PROPERTY_ALIASES["status"]
         + PROPERTY_ALIASES["reading_time"]
+        + PROPERTY_ALIASES["reading_minutes"]
         + PROPERTY_ALIASES["progress"]
         + PROPERTY_ALIASES["date"]
     )
@@ -388,6 +390,11 @@ def build_book_raw_properties(
         set_aliased_property(raw_properties, PROPERTY_ALIASES["status"], status)
         set_aliased_property(
             raw_properties, PROPERTY_ALIASES["reading_time"], format_time
+        )
+        set_aliased_property(
+            raw_properties,
+            PROPERTY_ALIASES["reading_minutes"],
+            round(reading_time / 60, 2),
         )
         set_aliased_property(
             raw_properties, PROPERTY_ALIASES["progress"], reading_progress
