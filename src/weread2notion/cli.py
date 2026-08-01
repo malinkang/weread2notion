@@ -1,4 +1,5 @@
 import argparse
+import json
 import logging
 import os
 import re
@@ -32,6 +33,7 @@ data_source_property_types = {}
 title_property_name = None
 skipped_property_names = set()
 weread = None
+read_info_diagnostics_remaining = 3
 
 load_dotenv()
 WEREAD_URL = "https://weread.qq.com/"
@@ -193,7 +195,34 @@ def get_bookmark_list(bookId):
 
 @retry(stop_max_attempt_number=3, wait_fixed=5000)
 def get_read_info(bookId):
+    global read_info_diagnostics_remaining
     data = weread.request("/book/getprogress", bookId=bookId)
+    if read_info_diagnostics_remaining > 0:
+        metrics = {}
+
+        def collect_metrics(value, path="data"):
+            if isinstance(value, dict):
+                for key, child in value.items():
+                    child_path = f"{path}.{key}"
+                    normalized_key = str(key).lower()
+                    if any(
+                        token in normalized_key
+                        for token in ("time", "duration", "progress", "record")
+                    ) and (child is None or isinstance(child, (int, float, bool))):
+                        metrics[child_path] = child
+                    if isinstance(child, (dict, list)):
+                        collect_metrics(child, child_path)
+            elif isinstance(value, list):
+                for index, child in enumerate(value[:3]):
+                    if isinstance(child, (dict, list)):
+                        collect_metrics(child, f"{path}[{index}]")
+
+        collect_metrics(data)
+        print(
+            "WEREAD_READING_METRICS "
+            + json.dumps(metrics, ensure_ascii=False, sort_keys=True)
+        )
+        read_info_diagnostics_remaining -= 1
     book = data.get("book") or {}
     progress = to_number(book.get("progress")) or 0
     reading_progress = normalize_reading_progress(progress)
