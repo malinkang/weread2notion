@@ -2,6 +2,7 @@ import argparse
 import logging
 import os
 import re
+import sys
 import time
 from notion_client import Client
 import requests
@@ -998,11 +999,16 @@ def main(argv=None):
         "command",
         nargs="?",
         default="sync",
-        choices=["sync"],
+        choices=["sync", "statistics"],
         help="Command to run. Defaults to sync.",
     )
-    parser.parse_args(argv)
+    args = parser.parse_args(argv)
     try:
+        if args.command == "statistics":
+            from .statistics import main as statistics_main
+
+            statistics_main(sys.argv[2:] if argv is None else argv[1:])
+            return
         sync()
     except ConfigError:
         raise SystemExit(1)

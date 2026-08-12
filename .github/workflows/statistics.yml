@@ -1,0 +1,43 @@
+name: reading statistics
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 0 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  statistics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install .
+      - name: Generate reading statistics
+        env:
+          WEREAD_API_KEY: ${{ secrets.WEREAD_API_KEY }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_PAGE: ${{ secrets.NOTION_PAGE }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REF_NAME: main
+        run: weread2notion statistics --skip-notion
+      - name: Publish statistic images
+        run: |
+          git config user.email "action@github.com"
+          git config user.name "GitHub Action"
+          git add OUT_FOLDER
+          git diff --cached --quiet || git commit -m "chore: update reading statistics"
+          git push
+      - name: Update Notion home page
+        env:
+          WEREAD_API_KEY: ${{ secrets.WEREAD_API_KEY }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_PAGE: ${{ secrets.NOTION_PAGE }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_REF_NAME: main
+        run: weread2notion statistics
