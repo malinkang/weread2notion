@@ -209,6 +209,7 @@ def get_read_info(bookId):
         "readingTime": book.get("recordReadingTime") or 0,
         "readingProgress": reading_progress,
         "finishedDate": finish_time,
+        "updateDate": update_time,
     }
 
 
@@ -323,7 +324,7 @@ def insert_to_notion(bookName, bookId, cover, sort, author, isbn, rating, catego
         raw_properties["阅读进度"] = readingProgress
         if "finishedDate" in read_info:
             raw_properties["时间"] = datetime.utcfromtimestamp(
-                read_info.get("finishedDate")
+                read_info.get("finishedDate") or read_info.get("updateDate")
             ).strftime(
                 "%Y-%m-%d %H:%M:%S"
             )
